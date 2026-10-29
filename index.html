@@ -413,7 +413,7 @@ function renderTitle(){
       <button class="btn ${has?"ghost":""}" onclick="startCreate()">New Game</button></div>
     ${has?`<p class="small muted" style="margin-top:12px">Starting a new game replaces your saved game.</p>`:""}</div>`;
 }
-function upgradeSave(){ S.gov=S.gov||{charter:null,seats:[...FNAMES,null],laws:[]}; S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; }
+function upgradeSave(){ S.gov=S.gov||{charter:null,seats:[...FNAMES,null],laws:[]}; S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; S.act=S.act||1; S.demands=S.demands||[]; S.flared=S.flared||{}; }
 function continueGame(){ S = load(); upgradeSave(); tab="map"; render(); }
 function startCreate(){ draft = {step:0,name:"",gender:null,race:null,faction:null,background:null}; render(); }
 
@@ -443,7 +443,7 @@ function finishCreate(){
   const d = draft; draft = null;
   S = {day:1, faction:d.faction, credits:d.background==="Trade"?220:120, alloy:20, food:20, items:{medkit:3},
        heroes:[], team:[], pool:[], poolDay:0, ctrl:{}, resolved:{}, rep:{}, power:{},
-       city:{b:{hall:1}, unrest:10}, culture:0, cultureDay:1, wm:{str:4, ready:false, lieutenants:5}, won:false, log:[], selected:"Central Meridian", outposts:{}, found:{}, secured:{}, gov:{charter:null,seats:[...FNAMES,null],laws:[]}};
+       city:{b:{hall:1}, unrest:10}, culture:0, cultureDay:1, wm:{str:4, ready:false, lieutenants:5}, won:false, log:[], selected:"Central Meridian", outposts:{}, found:{}, secured:{}, gov:{charter:null,seats:[...FNAMES,null],laws:[]}, act:1, plot:null, demands:[], flared:{}};
   const me = newHero({name:d.name.trim().slice(0,24), gender:d.gender, race:d.race, background:d.background, player:true});
   S.heroes.push(me); S.team=[me.id];
   const buddy = randomHero(1); buddy.name = pickOne(FIRST)+" "+pickOne(LAST); S.heroes.push(buddy); S.team.push(buddy.id);
@@ -500,17 +500,19 @@ function renderMap(){
   const legendKeys = ["City",...FNAMES,"Protectorate","Warmonger","Bandits","Monsters"].filter(k=>counts[k]);
   let actions = "";
   const T = terrainOf(r), explore = `<button class="btn ghost" ${ok?"":"disabled"} onclick="openExplore()">${T.icon} Explore</button>`;
-  if (r.city) actions = `<p class="small muted">Your city. Defense ${cityDefense()}. The Warmonger can raid it, but it can never be taken.</p><div class="row"><button class="btn" onclick="setTab('city')">Manage the city</button>${explore}</div>`;
+  if (r.city) actions = `<p class="small muted">Your city. Defense ${cityDefense()}. The Warmonger can raid it, but it can never be taken.</p><div class="row"><button class="btn" onclick="setTab('city')">Manage the city</button>${explore}</div>${act2()&&S.demands.length?`<p class="small" style="margin-top:8px">📜 ${S.demands.length} faction demand${S.demands.length>1?"s":""} waiting on the City tab.</p>`:""}`;
   else if (hostile) actions = `<p class="small muted">Danger ${r.danger}. Send your team to drive them out, then decide who governs the region.</p>
       <button class="btn" ${ok?"":"disabled"} onclick="expedition('liberate')">Liberate with your team</button>`;
-  else actions = `<p class="small muted">Danger ${r.danger}. ${S.resolved[r.id]?"Flashpoint resolved.":"A flashpoint is brewing here."}</p><div class="row">
-      ${!S.resolved[r.id]?`<button class="btn ice" ${ok?"":"disabled"} onclick="openStory()">Flashpoint: ${r.story.title}</button>`:""}
+  else actions = `<p class="small muted">Danger ${r.danger}. ${S.resolved[r.id]?"Flashpoint resolved.":S.flared[r.id]?"The flashpoint has flared up again, and it is tougher this time.":"A flashpoint is brewing here."}</p><div class="row">
+      ${plotHere(r)?`<button class="btn" ${ok?"":"disabled"} onclick="openPlot()">☣ ${plotHere(r).title}</button>`:""}
+      ${!S.resolved[r.id]?`<button class="btn ice" ${ok?"":"disabled"} onclick="openStory()">${S.flared[r.id]?"Flare-up":"Flashpoint"}: ${r.story.title}</button>`:""}
       <button class="btn" ${ok?"":"disabled"} onclick="expedition('patrol')">Patrol</button>
       <button class="btn ghost" ${ok?"":"disabled"} onclick="tradeRun()">Trade run</button>${explore}</div>`;
   const wmLeft = REGIONS.filter(x=>S.ctrl[x.id]==="Warmonger").length;
   $app.innerHTML = `
     ${S.won?`<div class="panel"><h2>✶ The Warmonger Falls</h2><p>${endingText()}</p><p class="small muted">Your city keeps running. Keep playing, or start over from the title screen.</p><button class="btn ghost" onclick="toTitle()">Title screen</button></div>`:""}
     ${!S.won && S.wm.ready?`<div class="panel"><h2>⚔️ The Warmonger's last stand</h2><p>Driven off every region, the Warmonger of Meridian gathers his guard for one final strike at your city.</p><button class="btn" ${ok?"":"disabled"} onclick="expedition('final')">Face the Warmonger</button></div>`:""}
+    ${plotPanel()}
     <div class="panel map">${mapSVG()}
       <div class="legend">${legendKeys.map(k=>`<span><i style="background:${ctrlInfo(k).color}"></i>${ctrlInfo(k).label} (${counts[k]})</span>`).join("")}</div></div>
     <div class="panel"><div class="spread"><h2>${r.icon} ${r.id}</h2><span class="tag" style="color:${info.color};border-color:${info.color}">${info.label}</span></div>
@@ -535,8 +537,13 @@ function makeEnemies(r, kind){
   } else if (kind==="patrol"){
     for(let i=0;i<n-1;i++) list.push(enemyStats(pickOne(MONSTERS),d,.9));
   } else if (kind==="story"){
-    for(let i=0;i<n-1;i++) list.push(enemyStats(r.enemy,d,1));
-    list.push(enemyStats(r.enemy+" Leader",d,1,true));
+    const m = S.flared[r.id] ? 1.2 : 1;
+    for(let i=0;i<n-1;i++) list.push(enemyStats(r.enemy,d,m));
+    list.push(enemyStats(r.enemy+" Leader",d,m,true));
+  } else if (kind==="plot"){
+    const st = plotStep(), dd = Math.max(d,3) + S.plot.step;
+    for(let i=0;i<n-1;i++) list.push(enemyStats(st.enemy,dd,1));
+    list.push(enemyStats(st.final?"Blight Colossus":st.enemy+" Captain",dd,1.1,true));
   } else if (c==="Warmonger"){
     const k = 1 + Math.min(S.wm.str, 3 + teamLevel())*0.05;
     for(let i=0;i<n-1;i++) list.push(enemyStats("Warmonger Trooper",d,k));
@@ -568,7 +575,7 @@ function bestFor(c){
   teamHeroes().filter(h=>h.hp>0).forEach(h=>{ const v = stat(h,c.stat)+checkBonus(h,c.talk); if(v>val){val=v;best=h;} });
   return {h:best,val};
 }
-function checkOdds(c){ const {val} = bestFor(c); const need = c.dc - val + 5; return clamp(Math.round((21-need)/20*100),5,95); }
+function checkOdds(c){ const {val} = bestFor(c); const need = c.dc - val + 5 + (S.flared[S.selected]?2:0); return clamp(Math.round((21-need)/20*100),5,95); }
 function openStory(){
   const r = regionById(S.selected), st = r.story;
   modal(`<h2>${st.title}</h2><p>${st.text}</p><div class="grid" style="grid-template-columns:1fr">${st.choices.map((c,i)=>{
@@ -580,17 +587,129 @@ function openStory(){
 function storyChoice(i){
   const r = regionById(S.selected), c = r.story.choices[i]; closeModal();
   if (c.fight){ startCombat(makeEnemies(r,"story"), r, "story"); return; }
-  const b = bestFor(c), roll = d20(), total = roll + b.val - 5;
+  const b = bestFor(c), roll = d20(), total = roll + b.val - 5 - (S.flared[r.id]?2:0);
   if (total >= c.dc || roll===20){ resolveFlashpoint(r); log(`${b.h.name}: ${c.ok}`, "ember"); }
   else { teamHeroes().forEach(h=>h.hp=Math.max(1,h.hp-(4+r.danger*2))); log(`${b.h.name}: ${c.bad} The team is hurt. You can try again another day.`, "bad"); }
   endDay(); save(); render();
 }
 function resolveFlashpoint(r){
-  S.resolved[r.id]=true;
+  S.resolved[r.id]=true; if (S.flared) delete S.flared[r.id];
   const ct = S.ctrl[r.id]; if (S.rep[ct]!==undefined) S.rep[ct]+=6;
   teamHeroes().forEach(h=>giveXP(h, 20+r.danger*8));
   S.city.unrest = Math.max(0,S.city.unrest-5);
   log(`The ${r.id} flashpoint is resolved. The region is harder for the Warmonger to take, and refugees settle in your city.`, "ember");
+}
+
+// ---------- Act 2: The Cracks (faction demands, flare-ups, the Blight plot) ----------
+const DEMANDS = {
+  "Northern Archipelagos":{title:"Alloy contracts", text:"The island guilds want a guaranteed share of your Alloy.", cost:{alloy:30}, rival:"Southern Plateau"},
+  "Southern Plateau":     {title:"Protect the water rights", text:"The plateau elders want your city to send food and water south, not sell it north.", cost:{food:25}, rival:"Northern Archipelagos", freeIf:"water"},
+  "Sentinel Corps":       {title:"Station a garrison", text:"The Sentinels want to post troops inside your walls and have you pay for their keep.", cost:{credits:60}, rival:"Crosswalkers", blockIf:"neutral"},
+  "Crosswalkers":         {title:"Open the market", text:"The Crosswalkers want an open bazaar where north and south trade without tariffs.", cost:{credits:40,alloy:10}, rival:"Sentinel Corps"}
+};
+const PLOT = [
+  {region:"Equatorial Isles", title:"The Courier", enemy:"Spore Runner",
+   text:"A smuggler's skiff is running sealed canisters through the cloud belt. The canisters hold live bio-weapon spores, and somebody paid a fortune to move them.",
+   choices:[{label:"Board the skiff", fight:true},
+     {label:"Track the skiff to its drop point", stat:"TEC", dc:14, ok:"Your scanner follows the skiff to a drop point. The canisters are marked with a foundry seal.", bad:"The skiff slips into the clouds, and its crew opens fire as it goes."},
+     {label:"Pay the courier to talk", stat:"PRE", dc:14, talk:true, ok:"The courier talks: the spores are paid for in Alloy from the northern foundries.", bad:"The courier takes your money and runs."}],
+   done:"The canisters lead north. Someone in the Alloy Foundries is paying for the Blight."},
+  {region:"Alloy Foundries", title:"The Paymaster", enemy:"Foundry Enforcer",
+   text:"An Alloy baron has been paying for the Blight in secret. If the south blames the north, the war comes back, and war is good for Alloy.",
+   choices:[{label:"Storm the baron's vault", fight:true},
+     {label:"Audit the foundry ledgers", stat:"INT", dc:15, ok:"The ledgers show the payments, and the baron's letters to the Warmonger of Meridian.", bad:"The ledgers are forged, and the baron's guards are waiting."},
+     {label:"Slip into the baron's office", stat:"AGI", dc:15, ok:"You find a map to the Blight Vault, buried deep in the desert.", bad:"An alarm trips and the guards close in."}],
+   done:"The baron was working for the Warmonger. The Blight stockpile sits in a vault under the Great Southern Desert."},
+  {region:"Great Southern Desert", title:"The Blight Vault", enemy:"Vault Warden", final:true,
+   text:"The vault holds enough Blight to poison every Soul-Well on the plateau. The Warmonger plans to release it and blame the north.",
+   choices:[{label:"Fight through to the stockpile", fight:true},
+     {label:"Disarm the release valves", stat:"INT", dc:16, ok:"One by one the valves lock shut. The Blight will never be released.", bad:"A valve bursts and the team breathes in spores."},
+     {label:"Seal the vault for good", stat:"TEC", dc:16, ok:"You overload the vault's doors and bury the Blight under a mountain of sand.", bad:"The seal fails and the vault's guardians wake."}],
+   done:"The Blight stockpile is gone. The Warmonger's plan to restart the war has failed, and he is weaker for it."}
+];
+function act2(){ return (S.act||1) >= 2; }
+function plotStep(){ return S.plot ? PLOT[S.plot.step] : null; }
+function plotBonus(){ return S.gov && S.gov.laws.includes("bioban") ? 2 : 0; }
+function flare(id, why){ if (!S.resolved[id]) return; S.resolved[id]=false; S.flared[id]=true; log(why, "pol"); }
+function actDay(){
+  if (!act2()){
+    const settled = REGIONS.filter(r=>S.resolved[r.id]).length;
+    if (bl("hall")>=2 && settled>=3){
+      S.act=2; S.plot={step:0,day:S.day};
+      log("Act 2 begins: The Cracks. Your town now has a seat on the Meridian Council, and every faction wants something from you. Worse, a smuggler has been seen running bio-weapon spores through the Equatorial Isles.", "ember");
+    }
+    return;
+  }
+  // faction demands
+  S.demands = S.demands.filter(d=>{
+    if (S.day < d.until) return true;
+    S.rep[d.f] -= 8; S.power[d.f] -= 3;
+    const home = REGIONS.filter(r=>r.home===d.f && S.resolved[r.id]);
+    if (home.length) flare(pickOne(home).id, `You ignored the ${d.f}. Angry, they let old trouble boil over again in their home region.`);
+    else log(`You ignored the demand from the ${d.f}. They won't forget it.`, "pol");
+    return false;
+  });
+  if (S.day%4===0 && S.demands.length<2){
+    const f = pickOne(FNAMES.filter(x=>!S.demands.some(d=>d.f===x)));
+    if (f){ S.demands.push({f, until:S.day+5}); log(`The ${f} make a demand of your city: ${DEMANDS[f].title}. Answer it on the City tab within 5 days.`, "pol"); }
+  }
+  // regions held by factions that resent you can flare up
+  REGIONS.forEach(r=>{ const h=S.ctrl[r.id]; if (S.resolved[r.id] && FNAMES.includes(h) && S.rep[h]<0 && Math.random()<.03) flare(r.id, `Resentment of your city boils over in ${r.id}. The flashpoint there flares up again.`); });
+  // the Blight spreads while the plot goes unanswered
+  if (S.plot && S.plot.step<PLOT.length && S.day - S.plot.day >= 8){ S.plot.day=S.day; S.wm.str=Math.min(10,S.wm.str+.5); log("The Blight spreads while its makers go unpunished. The Warmonger grows stronger.", "bad"); }
+}
+function demandCost(d){ const D=DEMANDS[d.f]; return (D.freeIf && S.gov.laws.includes(D.freeIf)) ? {} : D.cost; }
+function canGrant(d){ const D=DEMANDS[d.f], c=demandCost(d); if (D.blockIf && S.gov.laws.includes(D.blockIf)) return false; return Object.entries(c).every(([k,v])=>S[k]>=v); }
+function costText(c){ const e=Object.entries(c); return e.length ? e.map(([k,v])=>`${v} ${k==="credits"?"💠":k==="alloy"?"Alloy":"food"}`).join(", ") : "free"; }
+function answerDemand(i, yes){
+  const d = S.demands[i], D = DEMANDS[d.f]; if (!d) return;
+  if (yes){ if (!canGrant(d)) return; Object.entries(demandCost(d)).forEach(([k,v])=>S[k]-=v); S.rep[d.f]+=8; S.rep[D.rival]-=3; S.power[d.f]+=3; normPower(); log(`You grant the ${d.f}: ${D.title}. The ${D.rival} grumble.`, "pol"); }
+  else { S.rep[d.f]-=5; S.power[d.f]-=2; normPower(); log(`You refuse the ${d.f}: ${D.title}.`, "pol"); }
+  S.demands.splice(i,1); save(); render();
+}
+function demandsPanel(){
+  if (!act2()) return "";
+  const rows = S.demands.map((d,i)=>{ const D=DEMANDS[d.f], blocked = D.blockIf && S.gov.laws.includes(D.blockIf);
+    return `<div class="card"><div class="spread"><b>${D.title}</b><span class="tag">${d.until-S.day} day${d.until-S.day===1?"":"s"} left</span></div>
+      <span class="small muted">${d.f}: ${D.text} Granting it costs ${costText(demandCost(d))} and annoys the ${D.rival}. Refusing costs standing. Ignoring it costs more, and they may stir up trouble.</span>
+      ${blocked?`<span class="small danger" style="display:block;margin-top:4px">Your ${LAWS[D.blockIf].name} law forbids this.</span>`:""}
+      <div class="row" style="margin-top:8px"><button class="btn sm" ${canGrant(d)?"":"disabled"} onclick="answerDemand(${i},true)">Grant</button><button class="btn ghost sm" onclick="answerDemand(${i},false)">Refuse</button></div></div>`; }).join("");
+  return `<div class="panel"><h2>Faction demands</h2><p class="small muted">Now that your city sits on the Meridian Council, the factions ask things of it. Saying yes to one can anger another.</p>
+    <div class="grid">${rows || "<p class='small muted'>No demands right now.</p>"}</div></div>`;
+}
+function plotPanel(){
+  if (!act2() || S.won) return "";
+  const st = plotStep();
+  if (!st) return `<div class="panel"><h2>☣ The Blight Conspiracy</h2><p class="small muted">Stopped. The Blight stockpile is destroyed. Act 3, the Summit, comes in a later update.</p></div>`;
+  const held = HOSTILE.includes(S.ctrl[st.region]);
+  return `<div class="panel"><h2>☣ The Blight Conspiracy · ${S.plot.step+1} of ${PLOT.length}</h2><p class="small"><b>${st.title}</b> in ${st.region}.</p>
+    <p class="small muted">${held?`${ctrlInfo(S.ctrl[st.region]).label} hold ${st.region}. Liberate it first.`:"Send your team there to follow the trail."} Every 8 days the trail goes cold, the Warmonger grows stronger.</p>
+    ${S.selected!==st.region?`<button class="btn ghost sm" onclick="selectRegion('${st.region}')">Go to ${st.region}</button>`:""}</div>`;
+}
+function plotHere(r){ const st = plotStep(); return act2() && st && st.region===r.id && !HOSTILE.includes(S.ctrl[r.id]) ? st : null; }
+function plotOdds(c){ const {val} = bestFor(c); return clamp(Math.round((21-(c.dc-val-plotBonus()+5))/20*100),5,95); }
+function openPlot(){
+  const st = plotStep();
+  modal(`<h2>☣ ${st.title}</h2><p>${st.text}</p><div class="grid" style="grid-template-columns:1fr">${st.choices.map((c,i)=>{
+      if (c.fight) return `<button class="card" onclick="plotChoice(${i})"><b>${c.label}</b><span class="small muted">Battle</span></button>`;
+      const b = bestFor(c);
+      return `<button class="card" onclick="plotChoice(${i})"><b>${c.label}</b><span class="small muted">${STAT_NAMES[c.stat]} check by ${esc(b.h?b.h.name:"nobody")} · ${plotOdds(c)}% chance</span></button>`;}).join("")}</div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Not yet</button></div>`);
+}
+function plotChoice(i){
+  const st = plotStep(), r = regionById(st.region), c = st.choices[i]; closeModal();
+  if (c.fight){ startCombat(makeEnemies(r,"plot"), r, "plot"); return; }
+  const b = bestFor(c), roll = d20();
+  if (roll===20 || roll + b.val - 5 + plotBonus() >= c.dc){ log(`${b.h.name}: ${c.ok}`, "ember"); advancePlot(); }
+  else { teamHeroes().forEach(h=>h.hp=Math.max(1,h.hp-(5+r.danger*2))); log(`${b.h.name}: ${c.bad} The team is hurt. You can try again another day.`, "bad"); }
+  endDay(); save(); render();
+}
+function advancePlot(){
+  const st = plotStep(), r = regionById(st.region);
+  teamHeroes().forEach(h=>giveXP(h, 40+r.danger*10));
+  S.plot.step++; S.plot.day = S.day;
+  log(st.done, "ember");
+  if (st.final){ S.wm.str = Math.max(3, S.wm.str-2); S.wm.lieutenants = Math.max(0, S.wm.lieutenants-1); FNAMES.forEach(f=>S.rep[f]+=3); S.credits += 150; log("Every faction hears what your team did. +3 standing with all of them, +150 credits, and one of the Warmonger's lieutenants is exposed and arrested.", "good"); }
 }
 
 // ---------- Exploring: world actions ----------
@@ -735,6 +854,7 @@ function endCombat(){
   if (c.result==="win"){
     if (c.kind==="final"){ S.won=true; S.wm.ready=false; log("The Warmonger of Meridian is defeated. The war is over for good.", "ember"); save(); render(); return; }
     if (c.kind==="story"){ resolveFlashpoint(r); }
+    else if (c.kind==="plot"){ advancePlot(); }
     else if (c.kind==="patrol"){ log(`Your team cleared monsters around ${r.id}.`, "good"); if(S.rep[S.ctrl[r.id]]!==undefined) S.rep[S.ctrl[r.id]]+=2; }
     else { const was = S.ctrl[r.id]; if (was==="Warmonger"){ S.wm.lieutenants=Math.max(0,S.wm.lieutenants-1); S.wm.str=Math.max(3,S.wm.str-0.5); } log(`Your team drove the ${was==="Warmonger"?"Warmonger's forces":was.toLowerCase()} out of ${r.id}.`, "good"); return chooseGovernor(r); }
   } else if (c.result==="retreat") log(`Your team retreated from ${r.id}.`);
@@ -811,6 +931,7 @@ function endDay(){
   REGIONS.forEach(r=>{ if (S.outposts[r.id] && HOSTILE.includes(S.ctrl[r.id])){ delete S.outposts[r.id]; log(`Your outpost in ${r.id} is lost to the ${ctrlInfo(S.ctrl[r.id]).label}.`, "bad"); } });
   // hiring pool
   govDay(g);
+  actDay();
   if (S.day - S.poolDay >= (culture().fx.pool||3)) refreshPool();
   S.city.unrest = clamp(Math.round(S.city.unrest),0,100);
   S.day++;
@@ -827,7 +948,7 @@ function govDay(g){
     if (n){ S.power[f] += 0.3*n; if (S.day%3===0) S.rep[f] += n; }
     else if (S.power[f] >= 25 && Math.random() < .08){
       const home = REGIONS.filter(r=>r.home===f && S.resolved[r.id]);
-      if (home.length){ const r = pickOne(home); S.resolved[r.id]=false; log(`Shut out of your council, the ${f} stir up old anger in ${r.id}. The flashpoint there flares up again.`, "pol"); }
+      if (home.length){ const r = pickOne(home); flare(r.id, `Shut out of your council, the ${f} stir up old anger in ${r.id}. The flashpoint there flares up again.`); }
       else { S.rep[f] -= 2; S.city.unrest += 3; log(`The ${f} protest in your streets over having no seat on your council.`, "pol"); }
     }
   });
@@ -933,6 +1054,7 @@ function renderCity(){
     <p style="margin-top:10px"><b>Leading the council:</b> ${r}. <span class="muted">${RULER_FX[r]}</span></p>
     <p><b>City mood:</b> ${cu.name}. <span class="muted">${cu.text}</span></p>
     <p class="small muted">Power shifts every day. Factions gain power from the regions they hold and from your standing with them. Handing them regions after a liberation gives them a big push.</p></div>
+  ${demandsPanel()}
   ${govPanel()}
   <div class="panel"><h2>Buildings</h2><div class="grid">${Object.entries(BUILDINGS).map(([k,b])=>{ const l=bl(k), c=buildCost(k), maxed=l>=b.max, capped=k!=="hall"&&l>=bl("hall");
       return `<div class="card"><div class="spread"><b>${b.name}</b><span class="tag">Lv ${l}/${b.max}</span></div><span class="small muted">${b.text}</span>
