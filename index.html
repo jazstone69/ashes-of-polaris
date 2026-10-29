@@ -275,6 +275,42 @@ const RULER_FX = {
   "Crosswalkers":"Crosswalker-led Council: hiring costs 20% less and +1 standing with every faction every 3 days."
 };
 
+// ---------- Governance: charter, council seats and laws ----------
+const CHARTERS = {
+  martial: {name:"Martial Protectorate", how:"The watch commander rules.", text:"+6 city defense and Soldiers get +2 armor, but −5 credits a day.", likes:"Sentinel Corps", dislikes:"Crosswalkers", fx:{def:6,credits:-5,soldierArmor:2}},
+  merchant:{name:"Merchant Republic", how:"Trade guilds vote by wealth.", text:"+15 credits and +2 Alloy a day, and 10% lower prices. Unrest rises when food runs low.", likes:"Northern Archipelagos", dislikes:"Southern Plateau", fx:{credits:15,alloy:2,price:.9,hungry:true}},
+  covenant:{name:"Well Covenant", how:"Elders and well-keepers rule by tradition.", text:"+6 food a day, unrest drops by 1 a day and heroes heal 10% faster, but −2 Alloy a day.", likes:"Southern Plateau", dislikes:"Northern Archipelagos", fx:{food:6,unrest:-1,heal:.1,alloy:-2}},
+  assembly:{name:"Open Assembly", how:"Every settler gets a vote.", text:"Unrest drops by 2 a day and talk checks get +2, but laws need 4 of 5 council votes.", likes:"Crosswalkers", dislikes:"Sentinel Corps", fx:{unrest:-2,talk:2,votes:4}}
+};
+const LAWS = {
+  water:   {name:"Water Sharing Act", text:"+5 food a day, but −5 credits a day from water you no longer sell north.", likes:["Southern Plateau"], dislikes:["Northern Archipelagos"], fx:{food:5,credits:-5}},
+  tariff:  {name:"Alloy Export Tariff", text:"+12 credits a day from every Alloy sale.", likes:["Sentinel Corps"], dislikes:["Northern Archipelagos"], fx:{credits:12}},
+  gates:   {name:"Open Gates", text:"Refugees from every flashpoint join you: +2 heroes for hire and hiring costs 15% less, but −4 food a day.", likes:["Crosswalkers"], dislikes:["Sentinel Corps"], fx:{pool:2,hire:.85,food:-4}},
+  curfew:  {name:"Curfew", text:"+3 city defense, but unrest rises by 1 a day.", likes:["Sentinel Corps"], dislikes:["Crosswalkers"], fx:{def:3,unrest:1}},
+  bioban:  {name:"Bio-Research Ban", text:"The Warmonger's war machine grows half as fast.", likes:["Crosswalkers","Sentinel Corps"], dislikes:["Southern Plateau"], fx:{wmSlow:true}},
+  neutral: {name:"Neutral Ground", text:"No faction troops inside the walls. The Summit can be held in your city, so the Warmonger's last stand is 15% weaker.", likes:["Crosswalkers"], dislikes:["Sentinel Corps"], fx:{finalMult:.85}},
+  conscript:{name:"Conscription", text:"+5 city defense, but settlers produce less: −6 credits a day.", likes:["Sentinel Corps"], dislikes:["Southern Plateau","Crosswalkers"], fx:{def:5,credits:-6}}
+};
+const SEATS = 5;
+function govOpen(){ return bl("hall")>=2; }
+function lawSlots(){ return clamp(bl("hall")-1,0,3); }
+function govFx(){
+  const fx = {def:0,credits:0,alloy:0,food:0,unrest:0,heal:0,soldierArmor:0,talk:0,price:1,hire:1,pool:0,votes:3,wmSlow:false,finalMult:1,hungry:false};
+  if (!S || !S.gov) return fx;
+  const add = f=>Object.entries(f).forEach(([k,v])=>{ if (k==="price"||k==="hire"||k==="finalMult") fx[k]*=v; else if (typeof v==="boolean") fx[k]=fx[k]||v; else if (k==="votes") fx.votes=v; else fx[k]+=v; });
+  if (S.gov.charter) add(CHARTERS[S.gov.charter].fx);
+  S.gov.laws.forEach(l=>add(LAWS[l].fx));
+  return fx;
+}
+function seatCount(f){ return S.gov.seats.filter(x=>x===f).length; }
+function seatVote(who, law){
+  if (!who) return true; // your own companions back you
+  if (law.likes.includes(who)) return true;
+  if (law.dislikes.includes(who)) return false;
+  return (S.rep[who]||0) >= 5;
+}
+function voteTally(k){ const yes = S.gov.seats.filter(w=>seatVote(w,LAWS[k])).length; return {yes, need:govFx().votes}; }
+
 // ---------- State ----------
 const SAVE_KEY = "aop-save-v3";
 let S = null, draft = null, tab = "map", C = null;
@@ -296,10 +332,10 @@ function newHero(o){
 function stat(h,k){ return 5 + (RACES[h.race].bonus[k]||0) + (BACKGROUNDS[h.background].bonus[k]||0) + (h.statBonus[k]||0); }
 function maxHP(h){ let hp = 30 + stat(h,"MIG")*3 + (h.level-1)*8; if(h.subclass==="Cyberneticist"||h.subclass==="Miner") hp+=15; if(h.spec==="Augmenter") hp+=25; return hp; }
 function maxEN(h){ return 10 + stat(h,"TEC") + Math.floor(h.level/2)*2; }
-function armor(h){ let a=0; if(S.faction==="Sentinel Corps") a+=2; if(h.subclass==="Vanguard"||h.subclass==="Architect") a+=3; if(h.spec==="Bulwark"||h.spec==="Tunnel Warden") a+=5; return a; }
+function armor(h){ let a=0; if(S.faction==="Sentinel Corps") a+=2; if(h.subclass==="Vanguard"||h.subclass==="Architect") a+=3; if(h.spec==="Bulwark"||h.spec==="Tunnel Warden") a+=5; if(h.background==="Soldier") a+=govFx().soldierArmor; return a; }
 function hitBonus(h){ let b=0; if(h.subclass==="Ranger"||h.subclass==="Infiltrator") b+=10; if(h.spec==="Pathfinder") b+=10; return b; }
 function critChance(h){ let c=5; if(h.subclass==="Assassin") c+=15; if(h.spec==="Deadeye"||h.spec==="Nightblade") c+=20; return c; }
-function checkBonus(h,talk){ let b=0; if(h.spec==="Neural Diver") b+=2; if(talk&&h.subclass==="Envoy") b+=2; if(talk&&h.spec==="Mediator") b+=3; return b; }
+function checkBonus(h,talk){ let b=0; if(h.spec==="Neural Diver") b+=2; if(talk&&h.subclass==="Envoy") b+=2; if(talk&&h.spec==="Mediator") b+=3; if(talk) b+=govFx().talk; return b; }
 function abilityCost(h){ return h.subclass==="Technician" ? 3 : 5; }
 function xpNeeded(h){ return 50 + h.level*40; }
 function teamLevel(){ const t = teamHeroes(); return t.length ? t.reduce((s,h)=>s+h.level,0)/t.length : 1; }
@@ -309,7 +345,7 @@ function teamHeroes(){ return S.team.map(heroById).filter(Boolean); }
 function teamHas(fn){ return teamHeroes().some(fn); }
 function creditMult(){ let m=1; if(S.faction==="Northern Archipelagos") m+=.15; if(teamHas(h=>h.subclass==="Broker")) m+=.25; if(teamHas(h=>h.spec==="Chancellor"||h.spec==="Prospector")) m+=.4; return m; }
 function xpMult(h){ let m=1; if(S.faction==="Crosswalkers") m+=.15; if(h.spec==="Black Archivist") m+=.3; return m; }
-function priceMult(){ return S.heroes.some(h=>h.spec==="Smuggler Prince") ? .7 : 1; }
+function priceMult(){ return (S.heroes.some(h=>h.spec==="Smuggler Prince") ? .7 : 1) * govFx().price; }
 
 function randomHero(level){
   const race = pickOne(Object.keys(RACES)), bg = pickOne(Object.keys(BACKGROUNDS));
@@ -334,16 +370,17 @@ function bl(k){ return S.city.b[k]||0; }
 function tier(){ return TIERS[bl("hall")-1] || "Camp"; }
 function culture(){ return CULTURES[S.culture] || CULTURES[0]; }
 function ruler(){ return FNAMES.slice().sort((a,b)=>S.power[b]-S.power[a])[0]; }
-function cityDefense(){ let d = 6 + bl("barracks")*3 + (culture().fx.def||0); if(ruler()==="Sentinel Corps") d+=5; return d; }
-function hireCost(h){ let c = 50 + h.level*25; c *= (1 - .1*bl("hiring")); if(ruler()==="Crosswalkers") c*=.8; c *= (culture().fx.hire||1); c *= priceMult(); return Math.round(c); }
+function cityDefense(){ let d = 6 + bl("barracks")*3 + (culture().fx.def||0); if(ruler()==="Sentinel Corps") d+=5; return d + govFx().def; }
+function hireCost(h){ let c = 50 + h.level*25; c *= (1 - .1*bl("hiring")); if(ruler()==="Crosswalkers") c*=.8; c *= (culture().fx.hire||1); c *= govFx().hire; c *= priceMult(); return Math.round(c); }
 function income(){
   const cu = culture().fx, r = ruler();
   let credits = 10 + bl("market")*12 + (cu.credits||0) + (r==="Northern Archipelagos"?15:0);
   credits += REGIONS.filter(x=>S.ctrl[x.id]==="Protectorate").length*10;
   credits += REGIONS.filter(x=>S.outposts[x.id]).length*6;
+  const g = govFx(); credits += g.credits;
   if (S.city.unrest>50) credits = Math.round(credits/2);
-  let alloy = 1 + bl("workshop")*4 + (cu.alloy||0);
-  let food = 4 + bl("farms")*5 + (cu.food||0) + (r==="Southern Plateau"?4:0) - S.heroes.length;
+  let alloy = 1 + bl("workshop")*4 + (cu.alloy||0) + g.alloy;
+  let food = 4 + bl("farms")*5 + (cu.food||0) + (r==="Southern Plateau"?4:0) - S.heroes.length + g.food;
   return {credits, alloy, food};
 }
 
@@ -376,7 +413,7 @@ function renderTitle(){
       <button class="btn ${has?"ghost":""}" onclick="startCreate()">New Game</button></div>
     ${has?`<p class="small muted" style="margin-top:12px">Starting a new game replaces your saved game.</p>`:""}</div>`;
 }
-function upgradeSave(){ S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; }
+function upgradeSave(){ S.gov=S.gov||{charter:null,seats:[...FNAMES,null],laws:[]}; S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; }
 function continueGame(){ S = load(); upgradeSave(); tab="map"; render(); }
 function startCreate(){ draft = {step:0,name:"",gender:null,race:null,faction:null,background:null}; render(); }
 
@@ -406,7 +443,7 @@ function finishCreate(){
   const d = draft; draft = null;
   S = {day:1, faction:d.faction, credits:d.background==="Trade"?220:120, alloy:20, food:20, items:{medkit:3},
        heroes:[], team:[], pool:[], poolDay:0, ctrl:{}, resolved:{}, rep:{}, power:{},
-       city:{b:{hall:1}, unrest:10}, culture:0, cultureDay:1, wm:{str:4, ready:false, lieutenants:5}, won:false, log:[], selected:"Central Meridian", outposts:{}, found:{}, secured:{}};
+       city:{b:{hall:1}, unrest:10}, culture:0, cultureDay:1, wm:{str:4, ready:false, lieutenants:5}, won:false, log:[], selected:"Central Meridian", outposts:{}, found:{}, secured:{}, gov:{charter:null,seats:[...FNAMES,null],laws:[]}};
   const me = newHero({name:d.name.trim().slice(0,24), gender:d.gender, race:d.race, background:d.background, player:true});
   S.heroes.push(me); S.team=[me.id];
   const buddy = randomHero(1); buddy.name = pickOne(FIRST)+" "+pickOne(LAST); S.heroes.push(buddy); S.team.push(buddy.id);
@@ -494,7 +531,7 @@ function makeEnemies(r, kind){
   let list = [];
   if (kind==="final"){
     const k = 1 + Math.min(S.wm.str, 3 + teamLevel())*0.06;
-    list = [enemyStats("Warmonger Guard",8,k), enemyStats("The Warmonger of Meridian",9,k*1.4,true), enemyStats("Warmonger Guard",8,k)];
+    const fm = govFx().finalMult; list = [enemyStats("Warmonger Guard",8,k*fm), enemyStats("The Warmonger of Meridian",9,k*1.4*fm,true), enemyStats("Warmonger Guard",8,k*fm)];
   } else if (kind==="patrol"){
     for(let i=0;i<n-1;i++) list.push(enemyStats(pickOne(MONSTERS),d,.9));
   } else if (kind==="story"){
@@ -725,7 +762,7 @@ function endDay(){
   if (S.food < 0){ S.food = 0; S.city.unrest += 6; log("Food ran out. Unrest is rising.", "bad"); }
   S.city.unrest += -1 + (cu.unrest||0) + (before==="Sentinel Corps"?-1:0);
   // healing
-  const heal = .25 + bl("infirmary")*.15 + (before==="Southern Plateau"?.1:0);
+  const g = govFx(), heal = .25 + bl("infirmary")*.15 + (before==="Southern Plateau"?.1:0) + g.heal;
   S.heroes.forEach(h=>{ h.hp = Math.min(maxHP(h), Math.max(1,h.hp) + Math.round(maxHP(h)*heal)); h.en = maxEN(h); });
   // embassy + crosswalker rule
   for(let i=0;i<bl("embassy");i++) S.rep[pickOne(FNAMES)]++;
@@ -745,7 +782,7 @@ function endDay(){
   if (S.day - S.cultureDay >= 5){ let n; do { n = rand(CULTURES.length); } while(n===S.culture); S.culture=n; S.cultureDay=S.day; log(`A new mood takes hold in the city: ${CULTURES[n].name}. ${CULTURES[n].text}`, "pol"); }
   // the Warmonger moves
   if (!S.wm.ready && !S.won){
-    S.wm.str = Math.min(10, S.wm.str + 0.3);
+    S.wm.str = Math.min(10, S.wm.str + (g.wmSlow?0.15:0.3));
     let held = REGIONS.filter(r=>S.ctrl[r.id]==="Warmonger");
     if (!held.length && Math.random()<.5){ const t = pickOne(REGIONS.filter(r=>!r.city && S.ctrl[r.id]!=="Warmonger")); S.ctrl[t.id]="Warmonger"; held=[t]; log(`The Warmonger of Meridian re-emerges and seizes ${t.id}!`, "bad"); }
     else if (held.length && Math.random() < Math.min(.65, .4 + held.length*.05)){
@@ -773,12 +810,73 @@ function endDay(){
   });
   REGIONS.forEach(r=>{ if (S.outposts[r.id] && HOSTILE.includes(S.ctrl[r.id])){ delete S.outposts[r.id]; log(`Your outpost in ${r.id} is lost to the ${ctrlInfo(S.ctrl[r.id]).label}.`, "bad"); } });
   // hiring pool
+  govDay(g);
   if (S.day - S.poolDay >= (culture().fx.pool||3)) refreshPool();
   S.city.unrest = clamp(Math.round(S.city.unrest),0,100);
   S.day++;
 }
+function govDay(g){
+  if (!govOpen()) return;
+  S.city.unrest += g.unrest;
+  if (g.hungry && S.food < 10) S.city.unrest += 2;
+  if (S.gov.charter && S.day%2===0){ const c = CHARTERS[S.gov.charter]; S.rep[c.likes]++; S.rep[c.dislikes]--; }
+  const own = S.gov.seats.filter(x=>!x).length;
+  if (own>=2 && S.day%3===0){ FNAMES.forEach(f=>S.rep[f]--); }
+  FNAMES.forEach(f=>{
+    const n = seatCount(f);
+    if (n){ S.power[f] += 0.3*n; if (S.day%3===0) S.rep[f] += n; }
+    else if (S.power[f] >= 25 && Math.random() < .08){
+      const home = REGIONS.filter(r=>r.home===f && S.resolved[r.id]);
+      if (home.length){ const r = pickOne(home); S.resolved[r.id]=false; log(`Shut out of your council, the ${f} stir up old anger in ${r.id}. The flashpoint there flares up again.`, "pol"); }
+      else { S.rep[f] -= 2; S.city.unrest += 3; log(`The ${f} protest in your streets over having no seat on your council.`, "pol"); }
+    }
+  });
+  normPower();
+}
+function setCharter(k){
+  const was = S.gov.charter; closeModal();
+  S.gov.charter = k;
+  if (was){ S.city.unrest = Math.min(100, S.city.unrest+20); log(`Your city rewrites its charter: it is now a ${CHARTERS[k].name}. The change brings a period of unrest.`, "pol"); }
+  else log(`Your city adopts its first charter and becomes a ${CHARTERS[k].name}.`, "pol");
+  save(); render();
+}
+function askCharter(k){
+  if (S.gov.charter===k) return;
+  if (!S.gov.charter) return setCharter(k);
+  modal(`<h2>Change the charter?</h2><p class="muted">Switching to ${CHARTERS[k].name} adds 20 unrest while the city adjusts.</p><div class="row"><button class="btn" onclick="setCharter('${k}')">Change it</button><button class="btn ghost" onclick="closeModal()">Keep the current one</button></div>`);
+}
+function setSeat(i,v){ S.gov.seats[i] = v||null; log(`Council seat ${i+1} now goes to ${v?"the "+v:"your own companions"}.`, "pol"); save(); render(); }
+function proposeLaw(k){
+  if (S.gov.laws.includes(k) || S.gov.laws.length>=lawSlots()) return;
+  const t = voteTally(k), L = LAWS[k];
+  if (t.yes >= t.need){
+    S.gov.laws.push(k); L.likes.forEach(f=>S.rep[f]+=3); L.dislikes.forEach(f=>S.rep[f]-=3);
+    log(`The council passes the ${L.name}, ${t.yes} votes to ${SEATS-t.yes}.`, "pol");
+  } else { S.city.unrest += 2; log(`The council votes down the ${L.name}, ${t.yes} to ${SEATS-t.yes}. It needed ${t.need}.`, "pol"); }
+  save(); render();
+}
+function repealLaw(k){ S.gov.laws = S.gov.laws.filter(x=>x!==k); S.city.unrest += 3; log(`You repeal the ${LAWS[k].name}.`, "pol"); save(); render(); }
+function govPanel(){
+  if (!govOpen()) return `<div class="panel"><h2>Governance</h2><p class="small muted">Upgrade the Council Hall to level 2 (Town) to write your city's charter, fill its five council seats and pass laws.</p></div>`;
+  const ch = S.gov.charter;
+  const charters = Object.entries(CHARTERS).map(([k,c])=>`<button class="card ${ch===k?"sel":""}" ${ch===k?'aria-pressed="true"':""} onclick="askCharter('${k}')"><b>${c.name}${ch===k?' <span class="tag">Current</span>':""}</b><span class="small muted">${c.how} ${c.text}</span><span class="small" style="display:block;margin-top:4px">${FACTIONS[c.likes].short} pleased · ${FACTIONS[c.dislikes].short} uneasy</span></button>`).join("");
+  const opts = v=>`<option value="" ${!v?"selected":""}>Your companions</option>`+FNAMES.map(f=>`<option ${v===f?"selected":""}>${f}</option>`).join("");
+  const seats = S.gov.seats.map((v,i)=>`<label class="small" style="display:flex;gap:8px;align-items:center;margin:4px 0">Seat ${i+1}<select onchange="setSeat(${i},this.value)" style="flex:1;min-width:0;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit">${opts(v)}</select></label>`).join("");
+  const slots = lawSlots(), full = S.gov.laws.length>=slots;
+  const laws = Object.entries(LAWS).map(([k,L])=>{ const on = S.gov.laws.includes(k), t = voteTally(k);
+    return `<div class="card ${on?"sel":""}"><div class="spread"><b>${L.name}</b>${on?`<span class="tag">In force</span>`:""}</div><span class="small muted">${L.text}</span>
+      <span class="small" style="display:block;margin:4px 0">Backed by ${L.likes.map(f=>FACTIONS[f].short).join(", ")} · Opposed by ${L.dislikes.map(f=>FACTIONS[f].short).join(", ")}</span>
+      ${on?`<button class="btn ghost sm" onclick="repealLaw('${k}')">Repeal (+3 unrest)</button>`:`<button class="btn sm" ${full?"disabled":""} onclick="proposeLaw('${k}')">Vote: ${t.yes} of ${SEATS} yes, needs ${t.need}</button>`}</div>`; }).join("");
+  return `<div class="panel"><h2>Governance</h2>
+    <h3>Charter</h3><p class="small muted">${ch?`Your city is a ${CHARTERS[ch].name}. Changing it later adds 20 unrest.`:"Choose the kind of government your city runs on."} The faction a charter pleases gains standing every other day, and the one it worries loses it.</p>
+    <div class="grid">${charters}</div>
+    <h3 style="margin-top:14px">Council seats</h3><p class="small muted">Each faction with a seat gains standing and power over time, but votes on your laws by its own interests. A strong faction with no seat may stir trouble and reopen flashpoints in its home regions. Your companions always vote with you, but if they hold 2 or more seats, every faction loses standing over time.</p>
+    ${seats}
+    <h3 style="margin-top:14px">Laws (${S.gov.laws.length} of ${slots} slots)</h3><p class="small muted">A higher Council Hall opens more slots. A seat votes yes if its faction backs the law and no if it opposes it. Otherwise it votes yes only if your standing with that faction is 5 or more.</p>
+    <div class="grid">${laws}</div></div>`;
+}
 function refreshPool(first){
-  const lvl = clamp(1 + Math.floor(S.day/5), 1, 9), n = 3 + bl("hiring");
+  const lvl = clamp(1 + Math.floor(S.day/5), 1, 9), n = 3 + bl("hiring") + govFx().pool;
   S.pool = Array.from({length:n},()=>randomHero(first?1:clamp(lvl-1+rand(3),1,10))); S.poolDay = S.day;
 }
 
@@ -835,6 +933,7 @@ function renderCity(){
     <p style="margin-top:10px"><b>Leading the council:</b> ${r}. <span class="muted">${RULER_FX[r]}</span></p>
     <p><b>City mood:</b> ${cu.name}. <span class="muted">${cu.text}</span></p>
     <p class="small muted">Power shifts every day. Factions gain power from the regions they hold and from your standing with them. Handing them regions after a liberation gives them a big push.</p></div>
+  ${govPanel()}
   <div class="panel"><h2>Buildings</h2><div class="grid">${Object.entries(BUILDINGS).map(([k,b])=>{ const l=bl(k), c=buildCost(k), maxed=l>=b.max, capped=k!=="hall"&&l>=bl("hall");
       return `<div class="card"><div class="spread"><b>${b.name}</b><span class="tag">Lv ${l}/${b.max}</span></div><span class="small muted">${b.text}</span>
       <div style="margin-top:8px">${maxed?`<span class="small muted">Fully built</span>`:capped?`<span class="small muted">Upgrade the Council Hall first</span>`:`<button class="btn sm" onclick="build('${k}')" ${canBuild(k)?"":"disabled"}>${l?"Upgrade":"Build"}: ${c.credits} 💠${c.alloy?`, ${c.alloy} Alloy`:""}</button>`}</div></div>`; }).join("")}</div></div>
@@ -859,7 +958,7 @@ function endingText(){
     "Southern Plateau":"With the Plateau leading the council, the Soul-Wells are protected and the northern pumps fall silent.",
     "Crosswalkers":"With the Crosswalkers leading the council, north and south still argue, but now they argue at the same table."
   };
-  return `${esc(heroById(S.team[0])?.name || S.heroes[0].name)} and the Meridian ${tier()} have beaten the Warmonger. ${E[r]} In the city, the mood is ${cu.name.toLowerCase()}.`;
+  return `${esc(heroById(S.team[0])?.name || S.heroes[0].name)} and the Meridian ${tier()} have beaten the Warmonger. ${E[r]} In the city, the mood is ${cu.name.toLowerCase()}.${S.gov&&S.gov.charter?` It is governed as a ${CHARTERS[S.gov.charter].name}${S.gov.laws.length?`, under the ${S.gov.laws.map(l=>LAWS[l].name).join(" and the ")}`:""}.`:""}`;
 }
 
 // ---------- Modal / toast ----------
