@@ -1,6 +1,6 @@
 // Lets Ashes of Polaris load offline after the first visit.
 // When you change any game file, bump CACHE so players get the new version.
-const CACHE = 'polaris-v1';
+const CACHE = 'polaris-v2';
 const FILES = ['./', 'index.html', 'icon.svg', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
