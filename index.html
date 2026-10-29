@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ashes of Polaris</title>
+<meta name="description" content="Ashes of Polaris: a free sci-fi strategy RPG in your browser. Lead a city in the Neutral Zone, hire a team of heroes, and push the Warmonger of Meridian off the map.">
+<meta name="theme-color" content="#0b0d14">
+<meta property="og:title" content="Ashes of Polaris">
+<meta property="og:description" content="Build a city on Aurelia, hire a team of heroes, and push the Warmonger of Meridian off the map. Free to play in your browser.">
+<meta property="og:image" content="https://jazstone69.github.io/ashes-of-polaris/icon-512.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{
+  --bg:#0b0d14;--panel:#141824;--panel2:#1b2030;--line:#2a3146;
+  --text:#e7e9f0;--muted:#9aa3b8;--ember:#ff8a3d;--ember2:#ffb26b;
+  --ice:#7cc7ff;--good:#5fd38d;--bad:#ff5d5d;--gold:#ffd166;
+  --c-sentinel:#5b8def;--c-arch:#34c3b5;--c-plateau:#e0a43a;--c-cross:#a77bf0;
+  --c-city:#ffd166;--c-war:#e5484d;--c-bandit:#b07a4f;--c-monster:#7bbf3a;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{min-height:100vh;background:radial-gradient(1200px 600px at 50% -200px,#2a1a14 0%,transparent 70%),var(--bg)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,label:focus-visible{outline:2px solid var(--ember2);outline-offset:2px}
+.wrap{max-width:900px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right,0px)) 104px max(16px,env(safe-area-inset-left,0px))}
+h1,h2,h3{margin:.2em 0 .4em;line-height:1.2;text-wrap:balance}
+h1{font-size:2rem;letter-spacing:.08em;text-transform:uppercase}
+h2{font-size:1.25rem}
+h3{font-size:1.02rem;color:var(--ember2)}
+p{margin:.4em 0 .8em}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:left;width:100%;min-width:0}
+button.card:hover:not(:disabled){border-color:var(--ember)}
+.card.sel{border-color:var(--ember);box-shadow:0 0 0 2px #ff8a3d55 inset}
+.card:disabled{opacity:.5;cursor:not-allowed}
+.card b{display:block;margin-bottom:2px}
+.btn{background:var(--ember);color:#1a0f08;border:0;border-radius:10px;padding:10px 16px;font-weight:700}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn.ice{background:var(--ice);color:#06121d}
+.btn.sm{padding:6px 10px;font-size:.85rem}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 12px;font:inherit;width:100%;max-width:320px}
+.bar{height:8px;background:#0006;border-radius:6px;overflow:hidden;min-width:60px;flex:1}
+.bar>i{display:block;height:100%}
+.hp>i{background:var(--good)}.en>i{background:var(--ice)}.xp>i{background:var(--gold)}.ehp>i{background:var(--bad)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center}
+.stats div{background:var(--panel);border-radius:10px;padding:6px 2px}
+.stats b{display:block;font-size:1.1rem}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:#0d1019ee;border-top:1px solid var(--line);padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px));backdrop-filter:blur(6px);z-index:5}
+.tabs button{flex:1;background:none;border:0;padding:8px 4px;border-radius:10px;color:var(--muted);font-weight:600;font-size:.9rem}
+.tabs button.on{color:var(--ember2);background:#ff8a3d1a}
+.hud{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;background:#0b0d14ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+.hud .in{max-width:900px;margin:0 auto;display:flex;gap:4px 14px;align-items:center;flex-wrap:wrap;font-size:.9rem;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.tag.war{color:#ff9a9d;border-color:#e5484d88}
+.log p{border-left:3px solid var(--line);padding-left:10px;margin:.3em 0 .6em}
+.log p.good{border-color:var(--good)}.log p.bad{border-color:var(--bad)}.log p.ember{border-color:var(--ember)}.log p.pol{border-color:var(--c-cross)}
+.modal{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal .panel{max-width:600px;width:100%;max-height:90vh;overflow:auto;margin:0}
+.title-art{font-size:4rem;text-align:center;filter:drop-shadow(0 0 18px #ff8a3d88)}
+.center{text-align:center}
+.steps{display:flex;gap:6px;margin-bottom:8px}
+.steps span{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.steps span.on{background:var(--ember)}
+.danger{color:var(--bad)}
+.map svg{width:100%;height:auto;display:block}
+.map .node{cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.hero{display:flex;flex-direction:column;gap:4px}
+.hero .meta{font-size:.8rem;color:var(--muted)}
+.fighter{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:6px 0}
+.fighter.act{border-color:var(--ember)}
+.fighter.down{opacity:.45}
+.power{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:6px 0}
+.power i{display:block;height:100%}
+@media (max-width:520px){h1{font-size:1.6rem}.stats b{font-size:1rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.pulse{animation:pulse 1.6s ease-in-out infinite}
+</style>
+</head>
+<body>
+<div id="hud" class="hud" hidden></div>
+<main class="wrap" id="app"></main>
+<nav class="tabs" id="tabs" hidden></nav>
+<div id="modal"></div>
+
+<script>
+"use strict";
+const PLANET = "Aurelia", STAR = "Polaris";
+
+// ---------- Character data (from the Xcode project + the AOP Overview) ----------
+const STATS = ["MIG","AGI","INT","PRE","TEC"];
+const STAT_NAMES = {MIG:"Might",AGI:"Agility",INT:"Intellect",PRE:"Presence",TEC:"Tech"};
+const RACES = {
+  "Human":     {bonus:{MIG:1,AGI:1,INT:1,PRE:1,TEC:1}, text:"Found in both hemispheres and every trade. +1 to every stat."},
+  "Synthborn": {bonus:{TEC:3,INT:1}, text:"Born with Hybrid-Bio-Alloy grown into their bodies, mostly in the north. +3 Tech, +1 Intellect."},
+  "Vael":      {bonus:{INT:2,PRE:2}, text:"Quiet plateau people who keep the old Soul-Well traditions. +2 Intellect, +2 Presence."},
+  "Drakken":   {bonus:{MIG:3,AGI:1}, text:"Heavy, scaled folk of the southern deserts and plains. +3 Might, +1 Agility."}
+};
+const GENDERS = ["Male","Female","Non-binary","Prefer not to say"];
+const FACTIONS = {
+  "Sentinel Corps":       {short:"Sentinels",   color:"var(--c-sentinel)", text:"The planet's standing army, kept at high readiness. Your heroes get +2 armor."},
+  "Northern Archipelagos":{short:"Archipelagos",color:"var(--c-arch)",     text:"Island cities rich from the Hybrid-Bio-Alloy boom. Earn 15% more credits."},
+  "Southern Plateau":     {short:"Plateau",     color:"var(--c-plateau)",  text:"Desert and plateau peoples who live by the Soul-Wells. Heroes recover 3 HP each turn in combat."},
+  "Crosswalkers":         {short:"Crosswalkers",color:"var(--c-cross)",    text:"Mixed-heritage mediators who walk between north and south. Earn 15% more XP."}
+};
+const FNAMES = Object.keys(FACTIONS);
+const BACKGROUNDS = {
+  "Soldier":  {bonus:{MIG:2,AGI:1}, main:"MIG", ability:"Breach Strike", text:"Front-line fighter. Attacks with Might."},
+  "Engineer": {bonus:{TEC:2,INT:1}, main:"TEC", ability:"Arc Turret",    text:"Builder and fixer. Attacks with Tech."},
+  "Diplomat": {bonus:{PRE:3},       main:"PRE", ability:"Command Voice", text:"Talks first, wins most. Attacks with Presence."},
+  "Operative":{bonus:{AGI:2,INT:1}, main:"AGI", ability:"Shadow Cut",    text:"Spy and saboteur. Attacks with Agility."},
+  "Trade":    {bonus:{TEC:1,MIG:1}, main:"MIG", ability:"Rig Charge",    text:"Miners and techs. Brings 100 extra credits to the city."}
+};
+const SUBCLASSES = {Soldier:["Vanguard","Ranger"],Engineer:["Architect","Cyberneticist"],Diplomat:["Envoy","Broker"],Operative:["Infiltrator","Assassin"],Trade:["Miner","Technician"]};
+const SUB_TEXT = {
+  Vanguard:"Heavy armor, holds the line. +3 armor.", Ranger:"Long-range marksman. +10% hit chance.",
+  Architect:"Field fortifications. +3 armor.", Cyberneticist:"Body upgrades. +15 max HP.",
+  Envoy:"Peace through words. Talk checks +2.", Broker:"Deals and favors. +25% credits from fights.",
+  Infiltrator:"Never seen coming. +10% hit chance.", Assassin:"Finds the weak point. +15% crit chance.",
+  Miner:"Tough as bedrock. +15 max HP.", Technician:"Overclocked gear. Ability costs 2 less energy."
+};
+const SPECS = {Vanguard:["Bulwark","Siegebreaker"],Ranger:["Pathfinder","Deadeye"],Architect:["Fabricator","Systems Director"],Cyberneticist:["Augmenter","Neural Diver"],Envoy:["Mediator","Chancellor"],Broker:["Smuggler Prince","Black Archivist"],Infiltrator:["Ghost","Saboteur"],Assassin:["Executioner","Nightblade"],Miner:["Tunnel Warden","Prospector"],Technician:["Mechanist","Signal Tech"]};
+const SPEC_TEXT = {
+  "Bulwark":"+5 armor.","Siegebreaker":"Ability deals +50% damage.","Pathfinder":"The team can always retreat, +10% hit.","Deadeye":"+20% crit chance.",
+  "Fabricator":"Heals 5 HP every turn in combat.","Systems Director":"Ability deals +50% damage.","Augmenter":"+25 max HP.","Neural Diver":"All checks +2.",
+  "Mediator":"Talk checks +3.","Chancellor":"+40% credits from fights.","Smuggler Prince":"Hiring and shop prices 30% lower.","Black Archivist":"+30% XP.",
+  "Ghost":"25% chance enemies miss.","Saboteur":"Ability stuns the target.","Executioner":"+60% damage to enemies under half HP.","Nightblade":"+20% crit chance.",
+  "Tunnel Warden":"+5 armor.","Prospector":"+40% credits from fights.","Mechanist":"Ability deals +50% damage.","Signal Tech":"Ability also heals 5 HP."
+};
+const SUB_LEVEL = 3, SPEC_LEVEL = 6, MAX_LEVEL = 12, TEAM_MAX = 3;
+const FIRST = ["Kael","Rin","Tova","Juno","Dax","Mira","Oren","Sela","Bram","Ilya","Zed","Nia","Corr","Vesh","Taly","Remy","Asha","Lio","Petra","Soren","Ines","Tamsin","Obi","Yara"];
+const LAST = ["Ashford","Vance","Okoro","Thane","Marr","Quill","Sato","Reyes","Dune","Hale","Ferro","Kessel","Mbeki","Lunde","Arkwright","Solis"];
+
+// ---------- Map ----------
+// Controllers: faction name | "City" | "Warmonger" | "Bandits" | "Monsters"
+const CTRL = {
+  "City":{label:"Your city",color:"var(--c-city)"},
+  "Warmonger":{label:"Warmonger of Meridian",color:"var(--c-war)"},
+  "Bandits":{label:"Bandits",color:"var(--c-bandit)"},
+  "Monsters":{label:"Monsters",color:"var(--c-monster)"}
+};
+FNAMES.forEach(f=>CTRL[f]={label:f,color:FACTIONS[f].color});
+function ctrlInfo(c){ return CTRL[c] || {label:"Meridian Protectorate",color:"var(--c-city)"}; }
+const HOSTILE = ["Warmonger","Bandits","Monsters"];
+
+const REGIONS = [
+  {id:"Northern Archipelagos", x:92, y:78, danger:3, icon:"⚓", home:"Northern Archipelagos", enemy:"Alloy Syndicate Enforcer", trade:{credits:40,alloy:6}, story:{
+    title:"The Profit Riots", text:"Dock workers are rioting in the alloy exchange over profit sharing, and Syndicate enforcers are cracking heads.",
+    choices:[{label:"Fight off the enforcers", fight:true},
+      {label:"Expose the Syndicate's hidden books", stat:"INT", dc:14, ok:"The workers see the skimmed profits for themselves. The Syndicate backs down.", bad:"The files are encrypted, and the enforcers spot your team."},
+      {label:"Rally the workers behind a strike", stat:"PRE", dc:14, talk:true, ok:"A peaceful strike shuts the exchange until the Syndicate signs a new deal.", bad:"The crowd doesn't trust outsiders."}]}},
+  {id:"Northern Forests", x:182, y:58, danger:2, icon:"🌲", home:"Sentinel Corps", enemy:"Neon Outlaw", trade:{credits:20,food:10}, story:{
+    title:"Raid on the Forest Sanctuary", text:"A gang of northern youths in cyber-gear is staging one of their outlaw “battles” against a southern sanctuary camp hidden in the forest.",
+    choices:[{label:"Defend the sanctuary", fight:true},
+      {label:"Talk the gang's leader down", stat:"PRE", dc:12, talk:true, ok:"You remind the leader that real people live in the camp. The gang drifts away.", bad:"The gang laughs and streams your failure to their feeds."},
+      {label:"Hack their battle feed offline", stat:"TEC", dc:12, ok:"With no audience watching, the raid falls apart.", bad:"Their counter-hack fries your gear."}]}},
+  {id:"Alloy Foundries", x:272, y:80, danger:5, icon:"🏭", home:"Sentinel Corps", enemy:"Rogue Sentinel", trade:{credits:20,alloy:14}, story:{
+    title:"The Secret Stockpile", text:"In the mountain foundries, a Sentinel commander is building war-frames in secret, against the Council's Non-Aggression Pact.",
+    choices:[{label:"Take down the war-frame", fight:true},
+      {label:"Shut down the foundry's reactor", stat:"TEC", dc:16, ok:"The furnaces go cold and the half-built war-frames never wake.", bad:"Steam vents scald the team."},
+      {label:"Make the commander answer to the Council", stat:"PRE", dc:16, talk:true, ok:"The commander's own troops refuse to break the Pact. The stockpile is surrendered.", bad:"The commander has you thrown out into the snow."}]}},
+  {id:"Equatorial Isles", x:76, y:152, danger:2, icon:"🏝️", home:"Crosswalkers", enemy:"Cloudrunner Smuggler", trade:{credits:35,food:6}, story:{
+    title:"Smugglers in the Cloud Belt", text:"Hidden by the rolling equatorial clouds, smugglers run stolen Hybrid-Bio-Alloy between the islands, and both hemispheres blame each other.",
+    choices:[{label:"Raid the smugglers' island", fight:true},
+      {label:"Track their skiffs through the clouds", stat:"TEC", dc:12, ok:"Your scanner cuts through the cloud cover and leads the Sentinels to their cache.", bad:"The scanner fogs over and you run aground on a reef."},
+      {label:"Make a deal with their captain", stat:"PRE", dc:12, talk:true, ok:"The captain names the buyers in exchange for safe passage.", bad:"The captain takes your offer as an insult."}]}},
+  {id:"Central Meridian", x:182, y:152, danger:1, icon:"🏛️", home:"City", enemy:"Pact Breaker", city:true},
+  {id:"Southern Plains", x:96, y:228, danger:3, icon:"🌾", home:"Southern Plateau", enemy:"Soul-Well Zealot", trade:{credits:20,food:16}, story:{
+    title:"The Aquifer Pumps", text:"Northern pumps are draining a southern aquifer. “Return to the Soul-Wells” activists have seized the pump station and refuse to leave.",
+    choices:[{label:"Break the siege", fight:true},
+      {label:"Negotiate a fair water share", stat:"PRE", dc:14, talk:true, ok:"You broker a deal that halves the pumping and pays the plains towns. The activists step aside.", bad:"Both sides walk out on the talks."},
+      {label:"Prove the pumps are over their legal limit", stat:"INT", dc:14, ok:"The data shames the northern operator into shutting down for review.", bad:"The numbers don't add up, and the activists stop trusting you."}]}},
+  {id:"Great Southern Desert", x:184, y:236, danger:6, icon:"🏜️", home:"Southern Plateau", enemy:"Bio-Engineered Stalker", trade:{credits:30,alloy:8}, story:{
+    title:"The Desert Lab", text:"Deep in the desert, someone is testing bio-weapons. Rumors of the lab alone could push the north to strike first.",
+    choices:[{label:"Destroy the lab's guardian", fight:true},
+      {label:"Sabotage the lab's growth tanks", stat:"TEC", dc:17, ok:"The tanks fail safely and the research is lost.", bad:"Alarms blare, and acid burns your arm."},
+      {label:"Slip in and steal the research", stat:"AGI", dc:17, ok:"You hand the research to the Meridian Council, who quietly shut the program down.", bad:"A guard spots the team on the way out."}]}},
+  {id:"Southern Plateau", x:270, y:226, danger:4, icon:"⛰️", home:"Southern Plateau", enemy:"Well Raider", trade:{credits:20,food:12}, story:{
+    title:"The Poisoned Soul-Well", text:"Someone has planted a bio-weapon engine in the oldest Soul-Well on the plateau. If it releases, the south will blame the north.",
+    choices:[{label:"Destroy the Blight Engine", fight:true},
+      {label:"Disarm it by hand", stat:"INT", dc:15, ok:"You cut the last line with seconds left. The Soul-Well is safe.", bad:"A spray of spores burns your lungs."},
+      {label:"Hold back the crowd while the Vael seal the well", stat:"MIG", dc:15, ok:"The team holds the line long enough for the well to be sealed.", bad:"The crowd surges and knocks you down."}]}}
+];
+const EDGES = [["Northern Archipelagos","Northern Forests"],["Northern Forests","Alloy Foundries"],["Northern Archipelagos","Equatorial Isles"],
+  ["Northern Forests","Central Meridian"],["Alloy Foundries","Central Meridian"],["Equatorial Isles","Central Meridian"],["Equatorial Isles","Southern Plains"],
+  ["Central Meridian","Southern Plains"],["Central Meridian","Great Southern Desert"],["Central Meridian","Southern Plateau"],["Southern Plains","Great Southern Desert"],
+  ["Great Southern Desert","Southern Plateau"],["Alloy Foundries","Southern Plateau"]];
+function regionById(id){ return REGIONS.find(r=>r.id===id); }
+function neighbors(id){ return EDGES.filter(e=>e.includes(id)).map(e=>e[0]===id?e[1]:e[0]); }
+
+const MONSTERS = ["Spore Hound","Glass Wyrm","Cloud Ray","Rock Crawler","Bloodthorn Beast"];
+
+// ---------- Jobs in the world: terrain, hazards and world actions ----------
+const TERRAIN = {
+  "Forest":      {icon:"🌲", hazard:"Ambush in the dense cover", counter:"Operative", hidden:"a hidden sanctuary camp's store of rare plants", best:["Operative"]},
+  "Ocean":       {icon:"🌊", hazard:"Storms in the cloud belt and sharp reefs", counter:"Trade", hidden:"a sunken smuggler wreck", best:["Diplomat","Trade"]},
+  "Mountains":   {icon:"🏔️", hazard:"Bitter cold and rockslides", counter:"Engineer", hidden:"a secret Alloy factory", best:["Engineer","Trade"]},
+  "Plains":      {icon:"🌾", hazard:"Raiders on open ground", counter:"Soldier", hidden:"a forgotten aquifer cistern", best:["Soldier","Engineer"]},
+  "Desert":      {icon:"🏜️", hazard:"Heat, sandstorms and bio-creatures", counter:"Operative", hidden:"a buried lab full of old research", best:["Operative","Trade"]},
+  "Plateau":     {icon:"⛰️", hazard:"Thin air and sacred ground that outsiders must not walk carelessly", counter:"Diplomat", hidden:"an ancient Soul-Well shrine", best:["Diplomat"]},
+  "Neutral Zone":{icon:"🏛️", hazard:"Old battlefields full of unexploded ordnance", counter:"Engineer", hidden:"a cache of war relics", best:["Soldier","Diplomat"]}
+};
+const REGION_TERRAIN = {"Northern Archipelagos":"Ocean","Northern Forests":"Forest","Alloy Foundries":"Mountains","Equatorial Isles":"Ocean",
+  "Central Meridian":"Neutral Zone","Southern Plains":"Plains","Great Southern Desert":"Desert","Southern Plateau":"Plateau"};
+function terrainOf(r){ return TERRAIN[REGION_TERRAIN[r.id]]; }
+// One world action per job. Anyone can try, but a hero of the right job does it best.
+const WORLD = {
+  clear:   {job:"Soldier",  stat:"MIG", label:"Clear the routes", text:"Drive off raiders and escort settlers home. Standing with the region's holder rises, unrest drops, and the region is harder for the Warmonger to take for 3 days."},
+  repair:  {job:"Engineer", stat:"TEC", label:"Build a field outpost", text:"Repair bridges, pumps and relays and raise an outpost: +6 credits a day and a stronger defense, until an enemy takes the region."},
+  persuade:{job:"Diplomat", stat:"PRE", label:"Win over the locals", text:"Talk the region's leaders into a deal. Big standing gain with its holder, and a local hero offers to join your hiring hall.", talk:true},
+  scout:   {job:"Operative",stat:"AGI", label:"Scout hidden places", text:"Search for hidden routes and caches. The first success uncovers the region's secret."},
+  gather:  {job:"Trade",    stat:"MIG", label:"Mine, fish and salvage", text:"Bring home a big haul of the region's goods."}
+};
+const SUB_WORLD = {Vanguard:"clear",Assassin:"clear",Ranger:"scout",Infiltrator:"scout",Architect:"repair",Cyberneticist:"repair",Technician:"repair",Envoy:"persuade",Broker:"persuade",Miner:"gather"};
+function worldBonus(h,k,r){
+  const A = WORLD[k], T = terrainOf(r); let b = 0;
+  if (h.background!==A.job) b -= 4;
+  else if (T.best.includes(A.job)) b += 3;
+  if (SUB_WORLD[h.subclass]===k){ b += 3; if (h.spec) b += 2; }
+  if (A.talk) b += checkBonus(h,true); else b += checkBonus(h,false);
+  return b;
+}
+function worldDoer(k,r){
+  let best=null, val=-99;
+  teamHeroes().filter(h=>h.hp>0).forEach(h=>{ const v = stat(h,WORLD[k].stat) + worldBonus(h,k,r); if (v>val){ val=v; best=h; } });
+  return {h:best, val};
+}
+function worldDC(r){ return 10 + r.danger; }
+function worldOdds(k,r){ const {val} = worldDoer(k,r); return clamp(Math.round((21-(worldDC(r)-val+5))/20*100),5,95); }
+function worldBlocked(k,r){
+  if (k==="repair" && r.city) return "Your city already stands here. Build in the City tab.";
+  if (k==="repair" && S.outposts[r.id]) return "An outpost already runs here.";
+  if (k==="clear" && (S.secured[r.id]||0) > S.day) return "The routes are already clear.";
+  return "";
+}
+
+// ---------- City ----------
+const BUILDINGS = {
+  hall:     {name:"Council Hall", credits:150, alloy:20, max:4, text:"Raises the city's tier. Other buildings can't go above the hall's level."},
+  barracks: {name:"Barracks",     credits:80,  alloy:10, max:4, text:"+3 city defense per level against the Warmonger's raids."},
+  hiring:   {name:"Hiring Hall",  credits:70,  alloy:5,  max:4, text:"+1 hero for hire per level, and hiring costs 10% less per level."},
+  infirmary:{name:"Infirmary",    credits:70,  alloy:8,  max:4, text:"Heroes heal 15% more per day per level."},
+  workshop: {name:"Alloy Workshop",credits:90, alloy:0,  max:4, text:"+4 Alloy per day per level. Alloy upgrades your heroes' weapons."},
+  farms:    {name:"Hydro Farms",  credits:60,  alloy:5,  max:4, text:"+5 food per day per level. Each hero eats 1 food a day."},
+  market:   {name:"Bazaar",       credits:80,  alloy:5,  max:4, text:"+12 credits per day per level."},
+  embassy:  {name:"Embassy",      credits:100, alloy:10, max:4, text:"Each level adds +1 standing with a random faction every day."}
+};
+const TIERS = ["Camp","Town","City","Capital","Capital"];
+const CULTURES = [
+  {name:"Festival Season", text:"Unrest drops by 2 each day.", fx:{unrest:-2}},
+  {name:"Alloy Fever", text:"+4 Alloy each day.", fx:{alloy:4}},
+  {name:"Return to the Soul-Wells", text:"+4 food each day, but Alloy work slows (−2 Alloy).", fx:{food:4,alloy:-2}},
+  {name:"Neon Youth", text:"Recruits cost 20% less, but bandits spread more easily.", fx:{hire:.8,bandit:.06}},
+  {name:"War Fear", text:"+4 city defense, but trade slows (−8 credits each day).", fx:{def:4,credits:-8}},
+  {name:"Open Roads", text:"+10 credits each day and new heroes arrive every 2 days.", fx:{credits:10,pool:2}}
+];
+const RULER_FX = {
+  "Sentinel Corps":"Sentinel-led Council: +5 city defense and unrest drops by 1 each day.",
+  "Northern Archipelagos":"Archipelago-led Council: +15 credits each day.",
+  "Southern Plateau":"Plateau-led Council: +4 food each day and heroes heal 10% faster.",
+  "Crosswalkers":"Crosswalker-led Council: hiring costs 20% less and +1 standing with every faction every 3 days."
+};
+
+// ---------- State ----------
+const SAVE_KEY = "aop-save-v3";
+let S = null, draft = null, tab = "map", C = null;
+function load(){ try{ const t = localStorage.getItem(SAVE_KEY); return t ? JSON.parse(t) : null; }catch(e){ return null; } }
+function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
+function rand(n){ return Math.floor(Math.random()*n); }
+function pickOne(a){ return a[rand(a.length)]; }
+function d20(){ return 1 + rand(20); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function log(text, cls){ S.log.unshift({d:S.day,t:text,c:cls||""}); S.log = S.log.slice(0,80); }
+
+// ---------- Heroes ----------
+let HID = 1;
+function newHero(o){
+  const h = Object.assign({id:"h"+Date.now().toString(36)+(HID++), level:1, xp:0, statPoints:0, statBonus:{}, weapon:0, subclass:null, spec:null, player:false}, o);
+  h.hp = maxHP(h); h.en = maxEN(h); return h;
+}
+function stat(h,k){ return 5 + (RACES[h.race].bonus[k]||0) + (BACKGROUNDS[h.background].bonus[k]||0) + (h.statBonus[k]||0); }
+function maxHP(h){ let hp = 30 + stat(h,"MIG")*3 + (h.level-1)*8; if(h.subclass==="Cyberneticist"||h.subclass==="Miner") hp+=15; if(h.spec==="Augmenter") hp+=25; return hp; }
+function maxEN(h){ return 10 + stat(h,"TEC") + Math.floor(h.level/2)*2; }
+function armor(h){ let a=0; if(S.faction==="Sentinel Corps") a+=2; if(h.subclass==="Vanguard"||h.subclass==="Architect") a+=3; if(h.spec==="Bulwark"||h.spec==="Tunnel Warden") a+=5; return a; }
+function hitBonus(h){ let b=0; if(h.subclass==="Ranger"||h.subclass==="Infiltrator") b+=10; if(h.spec==="Pathfinder") b+=10; return b; }
+function critChance(h){ let c=5; if(h.subclass==="Assassin") c+=15; if(h.spec==="Deadeye"||h.spec==="Nightblade") c+=20; return c; }
+function checkBonus(h,talk){ let b=0; if(h.spec==="Neural Diver") b+=2; if(talk&&h.subclass==="Envoy") b+=2; if(talk&&h.spec==="Mediator") b+=3; return b; }
+function abilityCost(h){ return h.subclass==="Technician" ? 3 : 5; }
+function xpNeeded(h){ return 50 + h.level*40; }
+function teamLevel(){ const t = teamHeroes(); return t.length ? t.reduce((s,h)=>s+h.level,0)/t.length : 1; }
+function mainStat(h){ return BACKGROUNDS[h.background].main; }
+function heroById(id){ return S.heroes.find(h=>h.id===id); }
+function teamHeroes(){ return S.team.map(heroById).filter(Boolean); }
+function teamHas(fn){ return teamHeroes().some(fn); }
+function creditMult(){ let m=1; if(S.faction==="Northern Archipelagos") m+=.15; if(teamHas(h=>h.subclass==="Broker")) m+=.25; if(teamHas(h=>h.spec==="Chancellor"||h.spec==="Prospector")) m+=.4; return m; }
+function xpMult(h){ let m=1; if(S.faction==="Crosswalkers") m+=.15; if(h.spec==="Black Archivist") m+=.3; return m; }
+function priceMult(){ return S.heroes.some(h=>h.spec==="Smuggler Prince") ? .7 : 1; }
+
+function randomHero(level){
+  const race = pickOne(Object.keys(RACES)), bg = pickOne(Object.keys(BACKGROUNDS));
+  const h = newHero({name:`${pickOne(FIRST)} ${pickOne(LAST)}`, race, background:bg, gender:pickOne(GENDERS.slice(0,3))});
+  for (let i=1;i<level;i++){ h.level++; h.statBonus[mainStat(h)] = (h.statBonus[mainStat(h)]||0)+1; const k2 = pickOne(STATS); h.statBonus[k2] = (h.statBonus[k2]||0)+1; }
+  if (h.level>=SUB_LEVEL) h.subclass = pickOne(SUBCLASSES[bg]);
+  if (h.level>=SPEC_LEVEL) h.spec = pickOne(SPECS[h.subclass]);
+  h.hp = maxHP(h); h.en = maxEN(h);
+  return h;
+}
+function giveXP(h,n){
+  n = Math.round(n*xpMult(h)); h.xp += n;
+  while (h.level < MAX_LEVEL && h.xp >= xpNeeded(h)){
+    h.xp -= xpNeeded(h); h.level++; h.statPoints += 2; h.hp = maxHP(h); h.en = maxEN(h);
+    log(`${h.name} reached level ${h.level}.`, "ember");
+  }
+  return n;
+}
+
+// ---------- City math ----------
+function bl(k){ return S.city.b[k]||0; }
+function tier(){ return TIERS[bl("hall")-1] || "Camp"; }
+function culture(){ return CULTURES[S.culture] || CULTURES[0]; }
+function ruler(){ return FNAMES.slice().sort((a,b)=>S.power[b]-S.power[a])[0]; }
+function cityDefense(){ let d = 6 + bl("barracks")*3 + (culture().fx.def||0); if(ruler()==="Sentinel Corps") d+=5; return d; }
+function hireCost(h){ let c = 50 + h.level*25; c *= (1 - .1*bl("hiring")); if(ruler()==="Crosswalkers") c*=.8; c *= (culture().fx.hire||1); c *= priceMult(); return Math.round(c); }
+function income(){
+  const cu = culture().fx, r = ruler();
+  let credits = 10 + bl("market")*12 + (cu.credits||0) + (r==="Northern Archipelagos"?15:0);
+  credits += REGIONS.filter(x=>S.ctrl[x.id]==="Protectorate").length*10;
+  credits += REGIONS.filter(x=>S.outposts[x.id]).length*6;
+  if (S.city.unrest>50) credits = Math.round(credits/2);
+  let alloy = 1 + bl("workshop")*4 + (cu.alloy||0);
+  let food = 4 + bl("farms")*5 + (cu.food||0) + (r==="Southern Plateau"?4:0) - S.heroes.length;
+  return {credits, alloy, food};
+}
+
+// ---------- Rendering ----------
+const $app = document.getElementById("app"), $hud = document.getElementById("hud"), $tabs = document.getElementById("tabs"), $modal = document.getElementById("modal");
+function render(){
+  if (!S){ $hud.hidden=true; $tabs.hidden=true; return draft ? renderCreate() : renderTitle(); }
+  renderHUD(); $hud.hidden=false; $tabs.hidden=false;
+  $tabs.innerHTML = [["map","🪐 Map"],["team","🧭 Team"],["city","🏛️ City"],["log","📜 Log"]]
+    .map(([k,l])=>`<button class="${tab===k?"on":""}" onclick="setTab('${k}')">${l}</button>`).join("");
+  const p = pendingPick(); if (p) return renderPick(p);
+  ({map:renderMap,team:renderTeam,city:renderCity,log:renderLog})[tab]();
+}
+function setTab(k){ tab=k; render(); window.scrollTo(0,0); }
+function bar(cls,v,m){ return `<div class="bar ${cls}"><i style="width:${clamp(v/m*100,0,100)}%"></i></div>`; }
+function renderHUD(){
+  const wm = REGIONS.filter(r=>S.ctrl[r.id]==="Warmonger").length;
+  $hud.innerHTML = `<div class="in"><b>Day ${S.day}</b><span>💠 ${S.credits}</span><span>⚙️ ${S.alloy} Alloy</span><span>🌾 ${S.food}</span>
+    <span class="${S.city.unrest>50?"danger":""}">Unrest ${S.city.unrest}</span><span class="tag war">Warmonger: ${wm} region${wm===1?"":"s"}</span></div>`;
+}
+
+function renderTitle(){
+  const has = !!load();
+  $app.innerHTML = `<div class="panel center" style="margin-top:8vh">
+    <div class="title-art">✶</div><h1>Ashes of Polaris</h1>
+    <p class="muted">The first explorers crossed the dark to ${PLANET} by following a single star, ${STAR}. Then north and south fought for a thousand years.
+    Now a fragile peace holds in the Central Meridian, and you have been given an empty plot of land there to build a city. But the Warmonger of Meridian wants the war back, and bandits and monsters roam the gaps between the factions.</p>
+    <div class="row" style="justify-content:center;margin-top:16px">
+      ${has?`<button class="btn" onclick="continueGame()">Continue</button>`:""}
+      <button class="btn ${has?"ghost":""}" onclick="startCreate()">New Game</button></div>
+    ${has?`<p class="small muted" style="margin-top:12px">Starting a new game replaces your saved game.</p>`:""}</div>`;
+}
+function upgradeSave(){ S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; }
+function continueGame(){ S = load(); upgradeSave(); tab="map"; render(); }
+function startCreate(){ draft = {step:0,name:"",gender:null,race:null,faction:null,background:null}; render(); }
+
+const CREATE_STEPS = 4;
+function renderCreate(){
+  const d = draft; let body="", ready=false;
+  const steps = `<div class="steps">${Array.from({length:CREATE_STEPS},(_,i)=>`<span class="${i<=d.step?"on":""}"></span>`).join("")}</div>`;
+  if (d.step===0){
+    body = `<h2>Who leads the new city?</h2><p><label class="small muted" for="nm">Your name</label><br><input type="text" id="nm" maxlength="24" value="${esc(d.name)}" oninput="draft.name=this.value;document.getElementById('nx').disabled=!(this.value.trim()&&draft.gender)"></p>
+      <h3>Gender</h3><div class="grid">${GENDERS.map(g=>`<button class="card ${d.gender===g?"sel":""}" onclick="draft.gender='${g}';render()"><b>${g}</b></button>`).join("")}</div>`;
+    ready = d.name.trim() && d.gender;
+  } else if (d.step===1){
+    body = `<h2>Choose your race</h2><div class="grid">${Object.entries(RACES).map(([k,r])=>`<button class="card ${d.race===k?"sel":""}" onclick="draft.race='${k}';render()"><b>${k}</b><span class="small muted">${r.text}</span></button>`).join("")}</div>`;
+    ready = !!d.race;
+  } else if (d.step===2){
+    body = `<h2>Which faction backs you?</h2><p class="small muted">Your faction starts with more power on the city council and gives a bonus to your whole team.</p><div class="grid">${Object.entries(FACTIONS).map(([k,f])=>`<button class="card ${d.faction===k?"sel":""}" onclick="draft.faction='${k}';render()"><b>${k}</b><span class="small muted">${f.text}</span></button>`).join("")}</div>`;
+    ready = !!d.faction;
+  } else {
+    body = `<h2>Choose your background</h2><p class="small muted">Subclass at level ${SUB_LEVEL}, specialization at level ${SPEC_LEVEL}.</p><div class="grid">${Object.entries(BACKGROUNDS).map(([k,b])=>`<button class="card ${d.background===k?"sel":""}" onclick="draft.background='${k}';render()"><b>${k}</b><span class="small muted">${b.text}<br>Subclasses: ${SUBCLASSES[k].join(", ")}</span></button>`).join("")}</div>`;
+    ready = !!d.background;
+  }
+  $app.innerHTML = `<div class="panel">${steps}${body}<div class="spread" style="margin-top:16px">
+    <button class="btn ghost" onclick="${d.step===0?"draft=null":"draft.step--"};render()">Back</button>
+    <button class="btn" id="nx" ${ready?"":"disabled"} onclick="${d.step===CREATE_STEPS-1?"finishCreate()":"draft.step++;render()"}">${d.step===CREATE_STEPS-1?"Found the city":"Next"}</button></div></div>`;
+}
+function finishCreate(){
+  const d = draft; draft = null;
+  S = {day:1, faction:d.faction, credits:d.background==="Trade"?220:120, alloy:20, food:20, items:{medkit:3},
+       heroes:[], team:[], pool:[], poolDay:0, ctrl:{}, resolved:{}, rep:{}, power:{},
+       city:{b:{hall:1}, unrest:10}, culture:0, cultureDay:1, wm:{str:4, ready:false, lieutenants:5}, won:false, log:[], selected:"Central Meridian", outposts:{}, found:{}, secured:{}};
+  const me = newHero({name:d.name.trim().slice(0,24), gender:d.gender, race:d.race, background:d.background, player:true});
+  S.heroes.push(me); S.team=[me.id];
+  const buddy = randomHero(1); buddy.name = pickOne(FIRST)+" "+pickOne(LAST); S.heroes.push(buddy); S.team.push(buddy.id);
+  FNAMES.forEach(f=>{ S.rep[f] = f===d.faction?10:0; S.power[f] = f===d.faction?31:23; });
+  REGIONS.forEach(r=>S.ctrl[r.id]=r.home);
+  S.ctrl["Great Southern Desert"]="Warmonger"; S.ctrl["Equatorial Isles"]="Bandits"; S.ctrl["Northern Forests"]="Bandits";
+  refreshPool(true);
+  log(`The Meridian Council grants you land in the Neutral Zone. ${buddy.name} signs on as your first companion.`, "ember");
+  log("Scouts report the Warmonger of Meridian has seized the Great Southern Desert.", "bad");
+  save(); tab="map"; render();
+}
+
+// ---------- Level-up picks ----------
+function pendingPick(){
+  for (const h of S.heroes){
+    if (h.level>=SUB_LEVEL && !h.subclass) return {h,kind:"sub"};
+    if (h.level>=SPEC_LEVEL && h.subclass && !h.spec) return {h,kind:"spec"};
+  }
+  return null;
+}
+function renderPick(p){
+  const opts = p.kind==="sub" ? SUBCLASSES[p.h.background] : SPECS[p.h.subclass], txt = p.kind==="sub"?SUB_TEXT:SPEC_TEXT;
+  $app.innerHTML = `<div class="panel"><h2>${esc(p.h.name)}: choose a ${p.kind==="sub"?"subclass":"specialization"}</h2><p class="muted">This choice is permanent.</p>
+    <div class="grid">${opts.map(o=>`<button class="card" onclick="doPick('${p.h.id}','${p.kind}','${o}')"><b>${o}</b><span class="small muted">${txt[o]}</span></button>`).join("")}</div></div>`;
+}
+function doPick(id,kind,o){ const h=heroById(id); if(kind==="sub") h.subclass=o; else h.spec=o; h.hp=maxHP(h); log(`${h.name} is now a${/^[AEIOU]/.test(o)?"n":""} ${o}.`,"ember"); save(); render(); }
+
+// ---------- Map tab ----------
+function mapSVG(){
+  const sel = S.selected;
+  const edges = EDGES.map(([a,b])=>{ const A=regionById(a),B=regionById(b); return `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="#ffffff22" stroke-width="2"/>`; }).join("");
+  const nodes = REGIONS.map(r=>{
+    const c = S.ctrl[r.id], col = ctrlInfo(c).color, isSel = r.id===sel, war = c==="Warmonger";
+    return `<g class="node" role="button" tabindex="0" aria-label="${r.id}, held by ${ctrlInfo(c).label}" onclick="selectRegion('${r.id}')" onkeydown="if(event.key==='Enter')selectRegion('${r.id}')">
+      <circle cx="${r.x}" cy="${r.y}" r="${isSel?27:23}" fill="${col}" fill-opacity="${war?0.85:0.7}" stroke="${isSel?"#fff":"#0b0d14"}" stroke-width="${isSel?3:2}" ${war?'class="pulse"':""}/>
+      <text x="${r.x}" y="${r.y+6}" text-anchor="middle" font-size="18">${r.icon}</text>
+      ${S.resolved[r.id]?`<text x="${r.x+18}" y="${r.y-14}" font-size="12" fill="#ffd166">✶</text>`:""}
+      ${S.outposts[r.id]?`<text x="${r.x-28}" y="${r.y-12}" font-size="12">🏕️</text>`:""}
+      <text x="${r.x}" y="${r.y+40}" text-anchor="middle" font-size="10" fill="#e7e9f0">${r.id}</text></g>`;
+  }).join("");
+  return `<svg viewBox="0 0 360 300" role="img" aria-label="Map of the planet ${PLANET}">
+    <defs><radialGradient id="pg" cx="45%" cy="40%" r="65%"><stop offset="0" stop-color="#1f2a44"/><stop offset="1" stop-color="#0d1120"/></radialGradient></defs>
+    <circle cx="180" cy="150" r="146" fill="url(#pg)" stroke="#2a3146"/>
+    <ellipse cx="180" cy="152" rx="146" ry="20" fill="#ffffff08" stroke="#ffffff14" stroke-dasharray="4 5"/>
+    <text x="180" y="20" text-anchor="middle" font-size="9" fill="#9aa3b8" letter-spacing="2">NORTH</text>
+    <text x="180" y="294" text-anchor="middle" font-size="9" fill="#9aa3b8" letter-spacing="2">SOUTH</text>
+    ${edges}${nodes}</svg>`;
+}
+function selectRegion(id){ S.selected=id; render(); }
+function renderMap(){
+  const r = regionById(S.selected), c = S.ctrl[r.id], info = ctrlInfo(c), hostile = HOSTILE.includes(c);
+  const team = teamHeroes(), ok = team.length>0 && team.every(h=>h.hp>0);
+  const counts = {}; REGIONS.forEach(x=>{ const k=S.ctrl[x.id]; counts[k]=(counts[k]||0)+1; });
+  const legendKeys = ["City",...FNAMES,"Protectorate","Warmonger","Bandits","Monsters"].filter(k=>counts[k]);
+  let actions = "";
+  const T = terrainOf(r), explore = `<button class="btn ghost" ${ok?"":"disabled"} onclick="openExplore()">${T.icon} Explore</button>`;
+  if (r.city) actions = `<p class="small muted">Your city. Defense ${cityDefense()}. The Warmonger can raid it, but it can never be taken.</p><div class="row"><button class="btn" onclick="setTab('city')">Manage the city</button>${explore}</div>`;
+  else if (hostile) actions = `<p class="small muted">Danger ${r.danger}. Send your team to drive them out, then decide who governs the region.</p>
+      <button class="btn" ${ok?"":"disabled"} onclick="expedition('liberate')">Liberate with your team</button>`;
+  else actions = `<p class="small muted">Danger ${r.danger}. ${S.resolved[r.id]?"Flashpoint resolved.":"A flashpoint is brewing here."}</p><div class="row">
+      ${!S.resolved[r.id]?`<button class="btn ice" ${ok?"":"disabled"} onclick="openStory()">Flashpoint: ${r.story.title}</button>`:""}
+      <button class="btn" ${ok?"":"disabled"} onclick="expedition('patrol')">Patrol</button>
+      <button class="btn ghost" ${ok?"":"disabled"} onclick="tradeRun()">Trade run</button>${explore}</div>`;
+  const wmLeft = REGIONS.filter(x=>S.ctrl[x.id]==="Warmonger").length;
+  $app.innerHTML = `
+    ${S.won?`<div class="panel"><h2>✶ The Warmonger Falls</h2><p>${endingText()}</p><p class="small muted">Your city keeps running. Keep playing, or start over from the title screen.</p><button class="btn ghost" onclick="toTitle()">Title screen</button></div>`:""}
+    ${!S.won && S.wm.ready?`<div class="panel"><h2>⚔️ The Warmonger's last stand</h2><p>Driven off every region, the Warmonger of Meridian gathers his guard for one final strike at your city.</p><button class="btn" ${ok?"":"disabled"} onclick="expedition('final')">Face the Warmonger</button></div>`:""}
+    <div class="panel map">${mapSVG()}
+      <div class="legend">${legendKeys.map(k=>`<span><i style="background:${ctrlInfo(k).color}"></i>${ctrlInfo(k).label} (${counts[k]})</span>`).join("")}</div></div>
+    <div class="panel"><div class="spread"><h2>${r.icon} ${r.id}</h2><span class="tag" style="color:${info.color};border-color:${info.color}">${info.label}</span></div>
+      <p class="small muted">${T.icon} ${REGION_TERRAIN[r.id]} · Hazard: ${T.hazard.toLowerCase()} (a ${T.counter} on the team avoids it)${S.outposts[r.id]?" · 🏕️ Your outpost":""}${(S.secured[r.id]||0)>S.day?" · Routes secured":""}${S.found[r.id]?" · Secret found":""}</p>
+      ${actions}
+      <p class="small muted" style="margin-top:10px">Team: ${team.length?team.map(h=>`${esc(h.name)} (${h.hp}/${maxHP(h)} HP)`).join(", "):"nobody. Pick a team on the Team tab."}${team.some(h=>h.hp<=0)?" <span class='danger'>A downed hero can't go out. Rest a day or swap them out.</span>":""}</p>
+      <p class="small muted">Every trip out takes one day. ${wmLeft?`The Warmonger holds ${wmLeft} region${wmLeft>1?"s":""}. `:""}${!S.won?`Lieutenants still at large: ${S.wm.lieutenants}. Beat them all and drive him off the map to force his last stand.`:""}</p>
+      <button class="btn ghost sm" onclick="endDay();render()">Rest a day</button></div>`;
+}
+function toTitle(){ S=null; render(); }
+
+// ---------- Expeditions ----------
+function enemyStats(name, d, mult, boss){
+  return {name, maxHp:Math.round((30+d*14)*mult*(boss?2:1)), atk:Math.round((4+d*2.7)*(boss?1.35:1)*Math.sqrt(mult)), agi:4+d, armor:Math.floor(d/2)+(boss?2:0), boss:!!boss, stunned:false};
+}
+function makeEnemies(r, kind){
+  const c = S.ctrl[r.id], d = r.danger, n = clamp(1 + Math.ceil(teamHeroes().length*0.7) + (d>4?1:0), 1, 4);
+  let list = [];
+  if (kind==="final"){
+    const k = 1 + Math.min(S.wm.str, 3 + teamLevel())*0.06;
+    list = [enemyStats("Warmonger Guard",8,k), enemyStats("The Warmonger of Meridian",9,k*1.4,true), enemyStats("Warmonger Guard",8,k)];
+  } else if (kind==="patrol"){
+    for(let i=0;i<n-1;i++) list.push(enemyStats(pickOne(MONSTERS),d,.9));
+  } else if (kind==="story"){
+    for(let i=0;i<n-1;i++) list.push(enemyStats(r.enemy,d,1));
+    list.push(enemyStats(r.enemy+" Leader",d,1,true));
+  } else if (c==="Warmonger"){
+    const k = 1 + Math.min(S.wm.str, 3 + teamLevel())*0.05;
+    for(let i=0;i<n-1;i++) list.push(enemyStats("Warmonger Trooper",d,k));
+    list.push(enemyStats("Warmonger's Lieutenant",d,k,true));
+  } else if (c==="Bandits"){
+    for(let i=0;i<n;i++) list.push(enemyStats(i===0?r.enemy:"Bandit Raider",d,.95));
+  } else {
+    for(let i=0;i<n;i++) list.push(enemyStats(pickOne(MONSTERS),d,1));
+  }
+  list.forEach(e=>e.hp=e.maxHp);
+  return list;
+}
+function expedition(kind){
+  const r = kind==="final" ? regionById("Central Meridian") : regionById(S.selected);
+  startCombat(makeEnemies(r,kind), r, kind);
+}
+function tradeRun(){
+  const r = regionById(S.selected), t = r.trade, ct = S.ctrl[r.id];
+  let mult = (ct===S.faction?1.3:1) * (1 + (S.rep[ct]||0)/100);
+  const cr = Math.round(t.credits*mult), al = Math.round((t.alloy||0)*mult), fo = Math.round((t.food||0)*mult);
+  S.credits+=cr; S.alloy+=al; S.food+=fo;
+  log(`Trade run to ${r.id}: +${cr} credits${al?`, +${al} Alloy`:""}${fo?`, +${fo} food`:""}.`, "good");
+  endDay(); save(); render();
+}
+
+// ---------- Story ----------
+function bestFor(c){
+  let best=null, val=-99;
+  teamHeroes().filter(h=>h.hp>0).forEach(h=>{ const v = stat(h,c.stat)+checkBonus(h,c.talk); if(v>val){val=v;best=h;} });
+  return {h:best,val};
+}
+function checkOdds(c){ const {val} = bestFor(c); const need = c.dc - val + 5; return clamp(Math.round((21-need)/20*100),5,95); }
+function openStory(){
+  const r = regionById(S.selected), st = r.story;
+  modal(`<h2>${st.title}</h2><p>${st.text}</p><div class="grid" style="grid-template-columns:1fr">${st.choices.map((c,i)=>{
+      if (c.fight) return `<button class="card" onclick="storyChoice(${i})"><b>${c.label}</b><span class="small muted">Battle</span></button>`;
+      const b = bestFor(c);
+      return `<button class="card" onclick="storyChoice(${i})"><b>${c.label}</b><span class="small muted">${STAT_NAMES[c.stat]} check by ${esc(b.h?b.h.name:"nobody")} · ${checkOdds(c)}% chance</span></button>`;}).join("")}</div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Not yet</button></div>`);
+}
+function storyChoice(i){
+  const r = regionById(S.selected), c = r.story.choices[i]; closeModal();
+  if (c.fight){ startCombat(makeEnemies(r,"story"), r, "story"); return; }
+  const b = bestFor(c), roll = d20(), total = roll + b.val - 5;
+  if (total >= c.dc || roll===20){ resolveFlashpoint(r); log(`${b.h.name}: ${c.ok}`, "ember"); }
+  else { teamHeroes().forEach(h=>h.hp=Math.max(1,h.hp-(4+r.danger*2))); log(`${b.h.name}: ${c.bad} The team is hurt. You can try again another day.`, "bad"); }
+  endDay(); save(); render();
+}
+function resolveFlashpoint(r){
+  S.resolved[r.id]=true;
+  const ct = S.ctrl[r.id]; if (S.rep[ct]!==undefined) S.rep[ct]+=6;
+  teamHeroes().forEach(h=>giveXP(h, 20+r.danger*8));
+  S.city.unrest = Math.max(0,S.city.unrest-5);
+  log(`The ${r.id} flashpoint is resolved. The region is harder for the Warmonger to take, and refugees settle in your city.`, "ember");
+}
+
+// ---------- Exploring: world actions ----------
+function openExplore(){
+  const r = regionById(S.selected), T = terrainOf(r), safe = teamHas(h=>h.background===T.counter && h.hp>0);
+  modal(`<h2>${T.icon} Explore ${r.id}</h2>
+    <p class="small muted">${REGION_TERRAIN[r.id]}. Hazard: ${T.hazard}. ${safe?`<span style="color:var(--good)">Your ${T.counter} knows how to handle it.</span>`:`<span class="danger">Nobody on the team is a ${T.counter}, so the hazard will hurt everyone.</span>`} Best jobs here: ${T.best.join(" and ")}.</p>
+    <div class="grid" style="grid-template-columns:1fr">${Object.entries(WORLD).map(([k,A])=>{
+      const blocked = worldBlocked(k,r), d = worldDoer(k,r);
+      const by = d.h ? `${esc(d.h.name)} (${d.h.background}${d.h.background===A.job?"":", not a "+A.job}) · ${worldOdds(k,r)}% chance` : "nobody";
+      return `<button class="card" ${blocked?"disabled":""} onclick="worldAct('${k}')"><b>${A.label} <span class="tag">${A.job}</span></b><span class="small muted">${blocked||A.text}</span><span class="small" style="display:block;margin-top:4px">${blocked?"":by}</span></button>`;}).join("")}</div>
+    <p class="small muted" style="margin-top:8px">Each try takes one day. Heroes whose subclass fits an action get a bonus, and specializations add more.</p>
+    <div class="row"><button class="btn ghost" onclick="closeModal()">Not now</button></div>`);
+}
+function worldAct(k){
+  const r = regionById(S.selected), T = terrainOf(r), A = WORLD[k]; closeModal();
+  if (!teamHas(h=>h.background===T.counter && h.hp>0)){
+    const dmg = 3 + r.danger*2; teamHeroes().forEach(h=>h.hp=Math.max(1,h.hp-dmg));
+    log(`${T.hazard} in ${r.id}: every hero on the team takes ${dmg} damage. A ${T.counter} would have seen it coming.`, "bad");
+  }
+  const d = worldDoer(k,r), roll = d20(), ok = roll===20 || roll + d.val - 5 >= worldDC(r), holder = S.ctrl[r.id], d0 = r.danger;
+  if (!ok){
+    d.h.hp = Math.max(1, d.h.hp - (2+d0));
+    log(`${d.h.name} tried to ${A.label.toLowerCase()} in ${r.id} and failed. ${d.h.background===A.job?"Bad luck this time.":`A ${A.job} would have done better.`}`, "bad");
+    endDay(); save(); render(); return;
+  }
+  giveXP(d.h, 12 + d0*5);
+  if (k==="clear"){
+    S.secured[r.id] = S.day + 3; S.city.unrest = Math.max(0, S.city.unrest-4);
+    if (S.rep[holder]!==undefined) S.rep[holder] += 5;
+    log(`${d.h.name} clears the routes through ${r.id} and escorts a column of settlers to your city.`, "good");
+  } else if (k==="repair"){
+    S.outposts[r.id] = true;
+    log(`${d.h.name} repairs the old relays in ${r.id} and raises a field outpost. It now sends supplies home every day.`, "good");
+  } else if (k==="persuade"){
+    if (S.rep[holder]!==undefined){ S.rep[holder] += 8; S.power[holder] += 3; normPower(); }
+    const recruit = randomHero(clamp(Math.round(teamLevel()),1,10)); S.pool.push(recruit);
+    log(`${d.h.name} wins over the people of ${r.id}. ${recruit.name}, a local ${recruit.background}, is waiting at your hiring hall.`, "pol");
+  } else if (k==="scout"){
+    if (!S.found[r.id]){
+      S.found[r.id] = true; const cr = 40 + d0*15, al = 5 + d0*3; S.credits += cr; S.alloy += al;
+      log(`${d.h.name} uncovers ${T.hidden} in ${r.id}! +${cr} credits, +${al} Alloy.`, "ember");
+    } else { const cr = 15 + d0*5; S.credits += cr; log(`${d.h.name} finds a small cache in ${r.id}: +${cr} credits.`, "good"); }
+  } else if (k==="gather"){
+    const t = r.trade || {credits:30,alloy:4}, m = 1.5 * (T.best.includes("Trade")?1.3:1);
+    const cr = Math.round(t.credits*m), al = Math.round((t.alloy||0)*m), fo = Math.round((t.food||0)*m);
+    S.credits += cr; S.alloy += al; S.food += fo;
+    log(`${d.h.name} brings home a haul from ${r.id}: +${cr} credits${al?`, +${al} Alloy`:""}${fo?`, +${fo} food`:""}.`, "good");
+  }
+  endDay(); save(); render();
+}
+
+// ---------- Combat (party) ----------
+function startCombat(enemies, region, kind){
+  const ids = teamHeroes().filter(h=>h.hp>0).map(h=>h.id);
+  C = {enemies, ids, region:region.id, kind, turn:0, log:[`Your team meets ${enemies.length} ${enemies.length>1?"enemies":"enemy"} in ${region.id}.`], over:false};
+  nextActor(true); renderCombat();
+}
+function living(){ return C.ids.map(heroById).filter(h=>h.hp>0); }
+function foes(){ return C.enemies.filter(e=>e.hp>0); }
+function nextActor(start){
+  const L = C.ids;
+  if (!start) C.turn++;
+  while (C.turn < L.length && heroById(L[C.turn]).hp<=0) C.turn++;
+  if (C.turn >= L.length){ enemyPhase(); C.turn = 0; while (C.turn < L.length && heroById(L[C.turn]).hp<=0) C.turn++; }
+}
+function actor(){ return heroById(C.ids[C.turn]); }
+function renderCombat(){
+  const a = C.over ? null : actor();
+  const fighters = C.enemies.map(e=>`<div class="fighter ${e.hp<=0?"down":""}"><div class="spread small"><b>${e.boss?"⚠️ ":""}${e.name}</b><span>${e.hp}/${e.maxHp}</span></div>${bar("ehp",e.hp,e.maxHp)}</div>`).join("");
+  const heroes = C.ids.map(heroById).map(h=>`<div class="fighter ${h.hp<=0?"down":""} ${a&&a.id===h.id?"act":""}"><div class="spread small"><b>${esc(h.name)}</b><span>HP ${h.hp}/${maxHP(h)} · EN ${h.en}</span></div>${bar("hp",h.hp,maxHP(h))}</div>`).join("");
+  const canRetreat = C.kind!=="final";
+  modal(`<div class="spread"><h2>Battle: ${C.region}</h2></div>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px"><div><h3>Enemies</h3>${fighters}</div><div><h3>Your team</h3>${heroes}</div></div>
+    <div class="log panel" style="max-height:160px;overflow:auto">${C.log.slice(-6).reverse().map(l=>`<p class="small">${l}</p>`).join("")}</div>
+    ${C.over?`<button class="btn" onclick="endCombat()">Continue</button>`:`
+    <p class="small"><b>${esc(a.name)}</b>'s turn</p><div class="row">
+      <button class="btn" onclick="act('attack')">Attack</button>
+      <button class="btn ice" onclick="act('ability')" ${a.en<abilityCost(a)?"disabled":""}>${BACKGROUNDS[a.background].ability} (${abilityCost(a)} EN)</button>
+      <button class="btn ghost" onclick="act('medkit')" ${S.items.medkit?"":"disabled"}>Medkit (${S.items.medkit})</button>
+      ${canRetreat?`<button class="btn ghost" onclick="act('retreat')">Retreat</button>`:""}</div>`}`);
+}
+function act(kind){
+  const h = actor(), targets = foes(); if(!h) return;
+  const e = targets.slice().sort((a,b)=>a.hp-b.hp)[0];
+  if (kind==="retreat"){
+    const best = Math.max(...living().map(x=>stat(x,"AGI")));
+    if (C.ids.some(id=>heroById(id).spec==="Pathfinder") || rand(100) < 45 + (best-6)*5){ C.log.push("The team pulls back safely."); C.over=true; C.result="retreat"; renderCombat(); return; }
+    C.log.push("The team tries to pull back, but is cut off.");
+  } else if (kind==="medkit"){
+    const w = living().sort((a,b)=>a.hp/maxHP(a)-b.hp/maxHP(b))[0];
+    S.items.medkit--; const heal = Math.round(maxHP(w)*.5); w.hp = Math.min(maxHP(w), w.hp+heal); C.log.push(`${esc(h.name)} patches up ${esc(w.name)}: +${heal} HP.`);
+  } else {
+    const ab = kind==="ability"; if (ab) h.en -= abilityCost(h);
+    const hit = ab || rand(100) < clamp(75 + hitBonus(h) + (stat(h,"AGI")-e.agi)*3, 30, 97);
+    if (!hit) C.log.push(`${esc(h.name)} misses.`);
+    else {
+      let dmg = 4 + h.weapon + Math.floor(stat(h,mainStat(h))*1.2) + h.level + rand(4);
+      if (ab) dmg *= (["Siegebreaker","Systems Director","Mechanist"].includes(h.spec) ? 3 : 2);
+      const crit = rand(100) < critChance(h); if (crit) dmg *= 1.75;
+      if (h.spec==="Executioner" && e.hp < e.maxHp/2) dmg *= 1.6;
+      dmg = Math.max(1, Math.round(dmg) - e.armor); e.hp = Math.max(0, e.hp-dmg);
+      C.log.push(`${esc(h.name)}${ab?` uses ${BACKGROUNDS[h.background].ability}`:""}${crit?" (critical)":""}: ${dmg} damage to ${e.name}.${e.hp<=0?` ${e.name} falls.`:""}`);
+      if (ab && h.spec==="Saboteur" && e.hp>0){ e.stunned=true; C.log.push(`${e.name} is stunned.`); }
+      if (ab && h.spec==="Signal Tech"){ h.hp=Math.min(maxHP(h),h.hp+5); }
+    }
+  }
+  if (!foes().length){ winCombat(); return; }
+  nextActor(false);
+  if (!living().length){ loseCombat(); return; }
+  renderCombat();
+}
+function enemyPhase(){
+  living().forEach(h=>{ let r=0; if(S.faction==="Southern Plateau") r+=3; if(h.spec==="Fabricator") r+=5; if(r) h.hp=Math.min(maxHP(h),h.hp+r); });
+  foes().forEach(e=>{
+    const L = living(); if (!L.length) return;
+    if (e.stunned){ e.stunned=false; C.log.push(`${e.name} is stunned and can't act.`); return; }
+    const t = pickOne(L);
+    if (t.spec==="Ghost" && rand(100)<25){ C.log.push(`${e.name} loses track of ${esc(t.name)}.`); return; }
+    if (rand(100) >= clamp(70+(e.agi-stat(t,"AGI"))*3,25,95)){ C.log.push(`${e.name} misses ${esc(t.name)}.`); return; }
+    const dmg = Math.max(1, e.atk + rand(5) - armor(t)); t.hp = Math.max(0,t.hp-dmg);
+    C.log.push(`${e.name} hits ${esc(t.name)} for ${dmg}.${t.hp<=0?` ${esc(t.name)} is down!`:""}`);
+  });
+}
+function winCombat(){
+  const r = regionById(C.region), d = r.danger, tot = C.enemies.reduce((s,e)=>s+(e.boss?3:1),0);
+  const cr = Math.round((10 + d*7)*tot*creditMult()/1.5);
+  S.credits += cr;
+  C.ids.forEach(id=>{ const h=heroById(id); giveXP(h, (6+d*3)*tot/2 + (C.kind==="final"?300:0)); });
+  if (rand(100)<25){ S.items.medkit++; }
+  C.log.push(`Victory! +${cr} credits.`); C.over=true; C.result="win"; renderCombat();
+}
+function loseCombat(){
+  const lost = Math.floor(S.credits*.15); S.credits-=lost;
+  C.log.push(`The team is beaten and drags itself home. Scavengers take ${lost} credits.`); C.over=true; C.result="lose";
+  log(`Defeat in ${C.region}. Lost ${lost} credits.`, "bad"); renderCombat();
+}
+function endCombat(){
+  const c = C; C = null; closeModal();
+  c.ids.forEach(id=>{ const h=heroById(id); if(h.hp<=0) h.hp=1; });
+  const r = regionById(c.region);
+  if (c.result==="win"){
+    if (c.kind==="final"){ S.won=true; S.wm.ready=false; log("The Warmonger of Meridian is defeated. The war is over for good.", "ember"); save(); render(); return; }
+    if (c.kind==="story"){ resolveFlashpoint(r); }
+    else if (c.kind==="patrol"){ log(`Your team cleared monsters around ${r.id}.`, "good"); if(S.rep[S.ctrl[r.id]]!==undefined) S.rep[S.ctrl[r.id]]+=2; }
+    else { const was = S.ctrl[r.id]; if (was==="Warmonger"){ S.wm.lieutenants=Math.max(0,S.wm.lieutenants-1); S.wm.str=Math.max(3,S.wm.str-0.5); } log(`Your team drove the ${was==="Warmonger"?"Warmonger's forces":was.toLowerCase()} out of ${r.id}.`, "good"); return chooseGovernor(r); }
+  } else if (c.result==="retreat") log(`Your team retreated from ${r.id}.`);
+  endDay(); save(); render();
+}
+function chooseGovernor(r){
+  const opts = FNAMES.map(f=>`<button class="card" onclick="setGovernor('${r.id}','${f}')"><b>${f}</b><span class="small muted">+8 standing with them, −2 with the rest. They gain council power.${f===r.home?" This is their home region.":""}</span></button>`).join("");
+  modal(`<h2>Who governs ${r.id}?</h2><p class="muted">The region is free. Your choice shifts the balance of power on the council.</p>
+    <div class="grid" style="grid-template-columns:1fr">${opts}
+    <button class="card" onclick="setGovernor('${r.id}','Protectorate')"><b>Meridian Protectorate</b><span class="small muted">Your city runs it: +10 credits every day, but −1 standing with every faction.</span></button></div>`);
+}
+function setGovernor(id,who){
+  closeModal(); S.ctrl[id]=who;
+  if (who==="Protectorate"){ FNAMES.forEach(f=>S.rep[f]-=1); log(`${id} becomes a Meridian Protectorate.`, "pol"); }
+  else { FNAMES.forEach(f=>S.rep[f]+= f===who?8:-2); S.power[who]+=6; normPower(); log(`You hand ${id} to the ${who}.`, "pol"); }
+  if (!REGIONS.some(r=>S.ctrl[r.id]==="Warmonger") && !S.won){ if (S.wm.lieutenants<=0){ S.wm.ready=true; log("The Warmonger has lost every region and every lieutenant. He is gathering his guard for a last stand.", "bad"); } else log(`The Warmonger has no region left, but ${S.wm.lieutenants} of his lieutenants are still at large. He will be back.`, "bad"); }
+  endDay(); save(); render();
+}
+
+// ---------- Day cycle: the living map and changing politics ----------
+function normPower(){ const t = FNAMES.reduce((s,f)=>s+Math.max(1,S.power[f]),0); FNAMES.forEach(f=>S.power[f]=Math.round(Math.max(1,S.power[f])/t*100)); }
+function endDay(){
+  const before = ruler(), inc = income(), cu = culture().fx;
+  S.credits += inc.credits; S.alloy += inc.alloy; S.food += inc.food;
+  if (S.food < 0){ S.food = 0; S.city.unrest += 6; log("Food ran out. Unrest is rising.", "bad"); }
+  S.city.unrest += -1 + (cu.unrest||0) + (before==="Sentinel Corps"?-1:0);
+  // healing
+  const heal = .25 + bl("infirmary")*.15 + (before==="Southern Plateau"?.1:0);
+  S.heroes.forEach(h=>{ h.hp = Math.min(maxHP(h), Math.max(1,h.hp) + Math.round(maxHP(h)*heal)); h.en = maxEN(h); });
+  // embassy + crosswalker rule
+  for(let i=0;i<bl("embassy");i++) S.rep[pickOne(FNAMES)]++;
+  if (before==="Crosswalkers" && S.day%3===0) FNAMES.forEach(f=>S.rep[f]++);
+  // politics drift
+  FNAMES.forEach(f=>{ S.power[f] += rand(5)-2 + Math.sign(S.rep[f]-5)*0.5; });
+  REGIONS.forEach(r=>{ const c=S.ctrl[r.id]; if (S.power[c]!==undefined) S.power[c]+=0.4; });
+  FNAMES.forEach(f=>{ S.power[f] += (25 - S.power[f])*0.08; });
+  if (Math.random() < .15){
+    const lead = ruler(), f = pickOne(FNAMES);
+    if (Math.random() < .5){ S.power[lead]-=9; log(`Scandal on the council: a ${lead} leader is caught taking Alloy bribes. Their power drops.`, "pol"); }
+    else { S.power[f]+=8; log(`The ${f} hold a huge rally in your streets and win new seats on the council.`, "pol"); }
+  }
+  normPower();
+  const after = ruler();
+  if (after!==before) log(`Power shifts on the council: the ${after} now lead. ${RULER_FX[after]}`, "pol");
+  if (S.day - S.cultureDay >= 5){ let n; do { n = rand(CULTURES.length); } while(n===S.culture); S.culture=n; S.cultureDay=S.day; log(`A new mood takes hold in the city: ${CULTURES[n].name}. ${CULTURES[n].text}`, "pol"); }
+  // the Warmonger moves
+  if (!S.wm.ready && !S.won){
+    S.wm.str = Math.min(10, S.wm.str + 0.3);
+    let held = REGIONS.filter(r=>S.ctrl[r.id]==="Warmonger");
+    if (!held.length && Math.random()<.5){ const t = pickOne(REGIONS.filter(r=>!r.city && S.ctrl[r.id]!=="Warmonger")); S.ctrl[t.id]="Warmonger"; held=[t]; log(`The Warmonger of Meridian re-emerges and seizes ${t.id}!`, "bad"); }
+    else if (held.length && Math.random() < Math.min(.65, .4 + held.length*.05)){
+      const targets = [...new Set(held.flatMap(r=>neighbors(r.id)))].filter(id=>S.ctrl[id]!=="Warmonger");
+      if (targets.length){
+        const t = pickOne(targets), tr = regionById(t);
+        const roll = S.wm.str + rand(10);
+        if (tr.city){
+          if (roll > cityDefense()){ const loss=Math.floor(S.credits*.2); S.credits-=loss; S.city.unrest+=12; log(`The Warmonger raids your city! ${loss} credits stolen and unrest rises. Build Barracks to defend it.`, "bad"); }
+          else log("The Warmonger's raiders hit your city's walls and fall back.", "good");
+        } else {
+          let def = 6 + tr.danger + (S.resolved[t]?3:0) + (S.ctrl[t]==="Sentinel Corps"?2:0) + (S.outposts[t]?2:0) + ((S.secured[t]||0)>S.day?3:0);
+          if (roll > def){ const was = S.ctrl[t]; S.ctrl[t]="Warmonger"; log(`The Warmonger of Meridian seizes ${t} from ${ctrlInfo(was).label}!${S.outposts[t]?" Your outpost there is burned.":""}`, "bad"); delete S.outposts[t]; if(S.power[was]!==undefined) S.power[was]-=3; }
+          else log(`${ctrlInfo(S.ctrl[t]).label} hold ${t} against the Warmonger.`);
+        }
+      }
+    }
+  }
+  // bandits and monsters
+  const spread = .08 + (cu.bandit||0);
+  REGIONS.filter(r=>S.ctrl[r.id]==="Bandits").forEach(r=>{ if (Math.random()<spread){ const t = pickOne(neighbors(r.id).filter(id=>!regionById(id).city && !HOSTILE.includes(S.ctrl[id]))); if (t){ S.ctrl[t]="Bandits"; log(`Bandits overrun ${t}.${S.outposts[t]?" Your outpost there is lost.":""}`, "bad"); delete S.outposts[t]; } } });
+  if (Math.random() < .07){ const t = pickOne(REGIONS.filter(r=>!r.city && !HOSTILE.includes(S.ctrl[r.id]))); if (t){ S.ctrl[t.id]="Monsters"; log(`Monsters swarm out of the wilds and take ${t.id}.${S.outposts[t.id]?" Your outpost there is lost.":""}`, "bad"); delete S.outposts[t.id]; } }
+  REGIONS.filter(r=>S.ctrl[r.id]==="Bandits"||S.ctrl[r.id]==="Monsters").forEach(r=>{
+    if (Math.random()<.05){ const f = neighbors(r.id).map(id=>S.ctrl[id]).filter(c=>FNAMES.includes(c)); if (f.length){ const w = pickOne(f); log(`The ${w} clear ${r.id} on their own and take it over.`, "pol"); S.ctrl[r.id]=w; } }
+  });
+  REGIONS.forEach(r=>{ if (S.outposts[r.id] && HOSTILE.includes(S.ctrl[r.id])){ delete S.outposts[r.id]; log(`Your outpost in ${r.id} is lost to the ${ctrlInfo(S.ctrl[r.id]).label}.`, "bad"); } });
+  // hiring pool
+  if (S.day - S.poolDay >= (culture().fx.pool||3)) refreshPool();
+  S.city.unrest = clamp(Math.round(S.city.unrest),0,100);
+  S.day++;
+}
+function refreshPool(first){
+  const lvl = clamp(1 + Math.floor(S.day/5), 1, 9), n = 3 + bl("hiring");
+  S.pool = Array.from({length:n},()=>randomHero(first?1:clamp(lvl-1+rand(3),1,10))); S.poolDay = S.day;
+}
+
+// ---------- Team tab ----------
+function renderTeam(){
+  const heroCard = h=>{
+    const inTeam = S.team.includes(h.id);
+    return `<div class="card hero ${inTeam?"sel":""}"><div class="spread"><b>${esc(h.name)}${h.player?" (you)":""}</b><span class="tag">Lv ${h.level}</span></div>
+      <span class="meta">${h.race} · ${h.background}${h.subclass?" → "+h.subclass:""}${h.spec?" → "+h.spec:""}</span>
+      <div class="row small">HP ${h.hp}/${maxHP(h)} ${bar("hp",h.hp,maxHP(h))}</div>
+      <div class="row small">XP ${h.xp}/${xpNeeded(h)} ${bar("xp",h.xp,xpNeeded(h))}</div>
+      <div class="row"><button class="btn sm ${inTeam?"ghost":""}" onclick="toggleTeam('${h.id}')" ${!inTeam&&S.team.length>=TEAM_MAX?"disabled":""}>${inTeam?"Leave team":"Add to team"}</button>
+      <button class="btn ghost sm" onclick="openHero('${h.id}')">Details${h.statPoints?` (${h.statPoints} pts)`:""}</button></div></div>`;
+  };
+  const pool = S.pool.map((h,i)=>{ const cost=hireCost(h); return `<div class="card hero"><div class="spread"><b>${esc(h.name)}</b><span class="tag">Lv ${h.level}</span></div>
+      <span class="meta">${h.race} · ${h.background}${h.subclass?" → "+h.subclass:""}${h.spec?" → "+h.spec:""}</span>
+      <span class="small muted">${STATS.map(k=>`${k} ${stat(h,k)}`).join(" · ")}</span>
+      <button class="btn sm" onclick="hire(${i})" ${S.credits<cost?"disabled":""}>Hire for ${cost} 💠</button></div>`; }).join("");
+  $app.innerHTML = `<div class="panel"><h2>Your team (${S.team.length}/${TEAM_MAX})</h2><p class="small muted">Pick up to ${TEAM_MAX} heroes to go out on expeditions. Heroes who stay home rest and heal.</p>
+    <div class="grid">${S.heroes.map(heroCard).join("")}</div></div>
+    <div class="panel"><h2>Heroes for hire</h2><p class="small muted">New heroes arrive every few days, and stronger ones show up as time goes on. A Hiring Hall brings more of them.</p>
+    <div class="grid">${pool||"<p class='muted'>Nobody is looking for work right now.</p>"}</div></div>`;
+}
+function toggleTeam(id){ if (S.team.includes(id)) S.team=S.team.filter(x=>x!==id); else if (S.team.length<TEAM_MAX) S.team.push(id); save(); render(); }
+function hire(i){ const h=S.pool[i], cost=hireCost(h); if(S.credits<cost) return; S.credits-=cost; S.pool.splice(i,1); S.heroes.push(h); if(S.team.length<TEAM_MAX) S.team.push(h.id); log(`${h.name} joins your city.`, "good"); save(); render(); }
+function openHero(id){
+  const h = heroById(id), wcost = {credits:30+h.weapon*12, alloy:8+h.weapon*3};
+  modal(`<div class="spread"><h2>${esc(h.name)}</h2><span class="tag">Lv ${h.level}</span></div>
+    <p class="muted">${h.gender} · ${h.race} · ${h.background}${h.subclass?" → "+h.subclass:""}${h.spec?" → "+h.spec:""}</p>
+    ${h.statPoints?`<p class="small" style="color:var(--gold)">${h.statPoints} stat point${h.statPoints>1?"s":""} to spend.</p>`:""}
+    <div class="stats">${STATS.map(k=>`<div><span class="small muted">${STAT_NAMES[k]}</span><b>${stat(h,k)}</b>${h.statPoints?`<button class="btn ghost sm" onclick="spend('${h.id}','${k}')">+</button>`:""}</div>`).join("")}</div>
+    <p class="small muted" style="margin-top:10px">Armor ${armor(h)} · Crit ${critChance(h)}% · Weapon +${h.weapon} · Attacks with ${STAT_NAMES[mainStat(h)]} · Ability: ${BACKGROUNDS[h.background].ability}</p>
+    <div class="row"><button class="btn sm" onclick="upgradeWeapon('${h.id}')" ${S.credits<wcost.credits||S.alloy<wcost.alloy?"disabled":""}>Upgrade weapon (${wcost.credits} 💠, ${wcost.alloy} Alloy)</button>
+    ${!h.player?`<button class="btn ghost sm" onclick="dismiss('${h.id}')">Dismiss</button>`:""}<button class="btn ghost sm" onclick="closeModal()">Close</button></div>`);
+}
+function spend(id,k){ const h=heroById(id); if(!h.statPoints) return; h.statPoints--; h.statBonus[k]=(h.statBonus[k]||0)+1; save(); openHero(id); render(); }
+function upgradeWeapon(id){ const h=heroById(id), c={credits:30+h.weapon*12,alloy:8+h.weapon*3}; if(S.credits<c.credits||S.alloy<c.alloy) return; S.credits-=c.credits; S.alloy-=c.alloy; h.weapon+=3; save(); openHero(id); render(); }
+function dismiss(id){ const h=heroById(id); S.heroes=S.heroes.filter(x=>x.id!==id); S.team=S.team.filter(x=>x!==id); log(`${h.name} leaves the city.`); closeModal(); save(); render(); }
+
+// ---------- City tab ----------
+function buildCost(k){ const b=BUILDINGS[k], l=bl(k); return {credits:Math.round(b.credits*(l+1)*priceMult()), alloy:Math.round(b.alloy*(l+1))}; }
+function canBuild(k){ const b=BUILDINGS[k], l=bl(k), c=buildCost(k); if (l>=b.max) return false; if (k!=="hall" && l>=bl("hall")) return false; return S.credits>=c.credits && S.alloy>=c.alloy; }
+function build(k){ if(!canBuild(k)) return; const c=buildCost(k); S.credits-=c.credits; S.alloy-=c.alloy; S.city.b[k]=bl(k)+1; log(`Built ${BUILDINGS[k].name} level ${bl(k)}.`, "good"); save(); render(); }
+function renderCity(){
+  const inc = income(), r = ruler(), cu = culture();
+  const power = FNAMES.map(f=>`<i style="width:${S.power[f]}%;background:${FACTIONS[f].color}" title="${f} ${S.power[f]}%"></i>`).join("");
+  $app.innerHTML = `
+  <div class="panel"><div class="spread"><h2>🏛️ Meridian ${tier()}</h2><span class="tag">Defense ${cityDefense()}</span></div>
+    <p class="small muted">Each day: ${inc.credits>=0?"+":""}${inc.credits} credits · ${inc.alloy>=0?"+":""}${inc.alloy} Alloy · ${inc.food>=0?"+":""}${inc.food} food (${S.heroes.length} heroes eat). Unrest ${S.city.unrest}${S.city.unrest>50?" halves your credits":""}.</p>
+    <div class="row"><button class="btn ghost sm" onclick="buyMedkit()" ${S.credits<Math.round(30*priceMult())?"disabled":""}>Buy Medkit (${Math.round(30*priceMult())} 💠) · have ${S.items.medkit}</button></div></div>
+  <div class="panel"><h2>Council and culture</h2>
+    <div class="power">${power}</div>
+    <div class="legend">${FNAMES.map(f=>`<span><i style="background:${FACTIONS[f].color}"></i>${FACTIONS[f].short} ${S.power[f]}% · standing ${S.rep[f]}</span>`).join("")}</div>
+    <p style="margin-top:10px"><b>Leading the council:</b> ${r}. <span class="muted">${RULER_FX[r]}</span></p>
+    <p><b>City mood:</b> ${cu.name}. <span class="muted">${cu.text}</span></p>
+    <p class="small muted">Power shifts every day. Factions gain power from the regions they hold and from your standing with them. Handing them regions after a liberation gives them a big push.</p></div>
+  <div class="panel"><h2>Buildings</h2><div class="grid">${Object.entries(BUILDINGS).map(([k,b])=>{ const l=bl(k), c=buildCost(k), maxed=l>=b.max, capped=k!=="hall"&&l>=bl("hall");
+      return `<div class="card"><div class="spread"><b>${b.name}</b><span class="tag">Lv ${l}/${b.max}</span></div><span class="small muted">${b.text}</span>
+      <div style="margin-top:8px">${maxed?`<span class="small muted">Fully built</span>`:capped?`<span class="small muted">Upgrade the Council Hall first</span>`:`<button class="btn sm" onclick="build('${k}')" ${canBuild(k)?"":"disabled"}>${l?"Upgrade":"Build"}: ${c.credits} 💠${c.alloy?`, ${c.alloy} Alloy`:""}</button>`}</div></div>`; }).join("")}</div></div>
+  <div class="panel"><h3>Save</h3><p class="small muted">The game saves in this browser. Export a backup to move it to another device.</p>
+    <div class="row"><button class="btn ghost sm" onclick="exportSave()">Export save</button><label class="btn ghost sm" tabindex="0">Import save<input type="file" accept=".json,application/json" hidden onchange="importSave(this.files[0])"></label>
+    <button class="btn ghost sm danger" onclick="askDelete()">Delete game</button></div></div>`;
+}
+function buyMedkit(){ const c=Math.round(30*priceMult()); if(S.credits<c) return; S.credits-=c; S.items.medkit++; save(); render(); }
+function askDelete(){ modal(`<h2>Delete this game?</h2><p class="muted">Your city, heroes and map progress will be gone.</p><div class="row"><button class="btn" onclick="try{localStorage.removeItem(SAVE_KEY)}catch(e){};closeModal();toTitle()">Delete</button><button class="btn ghost" onclick="closeModal()">Keep playing</button></div>`); }
+function exportSave(){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:"application/json"})); a.download="ashes-of-polaris-save.json"; a.click(); }
+function importSave(f){ if(!f) return; f.text().then(t=>{ const d=JSON.parse(t); if(!d.heroes||!d.ctrl) throw 0; S=d; upgradeSave(); save(); render(); toast("Save loaded."); }).catch(()=>toast("That file isn't an Ashes of Polaris save.")); }
+
+// ---------- Log ----------
+function renderLog(){ $app.innerHTML = `<div class="panel log"><h2>📜 Chronicle</h2>${S.log.map(l=>`<p class="${l.c}"><span class="small muted">Day ${l.d}</span><br>${esc(l.t)}</p>`).join("")}</div>`; }
+
+// ---------- Ending ----------
+function endingText(){
+  const r = ruler(), cu = culture();
+  const E = {
+    "Sentinel Corps":"With the Sentinel Corps leading the council, the peace is guarded by soldiers on every corner. It is safe, and it is strict.",
+    "Northern Archipelagos":"With the Archipelagos leading the council, trade floods across the equator. Alloy money reaches the south for the first time.",
+    "Southern Plateau":"With the Plateau leading the council, the Soul-Wells are protected and the northern pumps fall silent.",
+    "Crosswalkers":"With the Crosswalkers leading the council, north and south still argue, but now they argue at the same table."
+  };
+  return `${esc(heroById(S.team[0])?.name || S.heroes[0].name)} and the Meridian ${tier()} have beaten the Warmonger. ${E[r]} In the city, the mood is ${cu.name.toLowerCase()}.`;
+}
+
+// ---------- Modal / toast ----------
+function modal(html){ $modal.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><div class="panel">${html}</div></div>`; }
+function closeModal(){ $modal.innerHTML = ""; }
+function toast(t){ const d=document.createElement("div"); d.textContent=t; d.style.cssText="position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000d;border:1px solid var(--line);padding:8px 14px;border-radius:10px;z-index:20"; document.body.appendChild(d); setTimeout(()=>d.remove(),2200); }
+
+render();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>

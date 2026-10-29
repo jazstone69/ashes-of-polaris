@@ -1,0 +1,16 @@
+{
+  "name": "Ashes of Polaris",
+  "short_name": "Polaris",
+  "description": "A free sci-fi strategy RPG. Build a city on Aurelia, hire a team of heroes, and push the Warmonger of Meridian off the map.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0d14",
+  "theme_color": "#0b0d14",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
