@@ -413,7 +413,7 @@ function renderTitle(){
       <button class="btn ${has?"ghost":""}" onclick="startCreate()">New Game</button></div>
     ${has?`<p class="small muted" style="margin-top:12px">Starting a new game replaces your saved game.</p>`:""}</div>`;
 }
-function upgradeSave(){ S.gov=S.gov||{charter:null,seats:[...FNAMES,null],laws:[]}; S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; S.act=S.act||1; S.demands=S.demands||[]; S.flared=S.flared||{}; }
+function upgradeSave(){ S.gov=S.gov||{charter:null,seats:[...FNAMES,null],laws:[]}; S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; S.act=S.act||1; S.demands=S.demands||[]; S.flared=S.flared||{}; S.settled=S.settled||{peace:0,force:0}; }
 function continueGame(){ S = load(); upgradeSave(); tab="map"; render(); }
 function startCreate(){ draft = {step:0,name:"",gender:null,race:null,faction:null,background:null}; render(); }
 
@@ -443,7 +443,7 @@ function finishCreate(){
   const d = draft; draft = null;
   S = {day:1, faction:d.faction, credits:d.background==="Trade"?220:120, alloy:20, food:20, items:{medkit:3},
        heroes:[], team:[], pool:[], poolDay:0, ctrl:{}, resolved:{}, rep:{}, power:{},
-       city:{b:{hall:1}, unrest:10}, culture:0, cultureDay:1, wm:{str:4, ready:false, lieutenants:5}, won:false, log:[], selected:"Central Meridian", outposts:{}, found:{}, secured:{}, gov:{charter:null,seats:[...FNAMES,null],laws:[]}, act:1, plot:null, demands:[], flared:{}};
+       city:{b:{hall:1}, unrest:10}, culture:0, cultureDay:1, wm:{str:4, ready:false, lieutenants:5}, won:false, log:[], selected:"Central Meridian", outposts:{}, found:{}, secured:{}, gov:{charter:null,seats:[...FNAMES,null],laws:[]}, act:1, plot:null, demands:[], flared:{}, settled:{peace:0,force:0}, summit:false};
   const me = newHero({name:d.name.trim().slice(0,24), gender:d.gender, race:d.race, background:d.background, player:true});
   S.heroes.push(me); S.team=[me.id];
   const buddy = randomHero(1); buddy.name = pickOne(FIRST)+" "+pickOne(LAST); S.heroes.push(buddy); S.team.push(buddy.id);
@@ -510,8 +510,9 @@ function renderMap(){
       <button class="btn ghost" ${ok?"":"disabled"} onclick="tradeRun()">Trade run</button>${explore}</div>`;
   const wmLeft = REGIONS.filter(x=>S.ctrl[x.id]==="Warmonger").length;
   $app.innerHTML = `
-    ${S.won?`<div class="panel"><h2>✶ The Warmonger Falls</h2><p>${endingText()}</p><p class="small muted">Your city keeps running. Keep playing, or start over from the title screen.</p><button class="btn ghost" onclick="toTitle()">Title screen</button></div>`:""}
-    ${!S.won && S.wm.ready?`<div class="panel"><h2>⚔️ The Warmonger's last stand</h2><p>Driven off every region, the Warmonger of Meridian gathers his guard for one final strike at your city.</p><button class="btn" ${ok?"":"disabled"} onclick="expedition('final')">Face the Warmonger</button></div>`:""}
+    ${S.won?`<div class="panel"><h2>✶ ${ENDINGS[endingKey()].title}</h2><p>${ENDINGS[endingKey()].text}</p><p class="small">${endingText()}</p><p class="small muted">Your city keeps running. Keep playing, or start over from the title screen.</p><button class="btn ghost" onclick="toTitle()">Title screen</button></div>`:""}
+    ${!S.won && S.wm.ready?`<div class="panel"><h2>⚔️ The Warmonger's last stand</h2><p>${S.summit?"The Summit is in session, and the Warmonger of Meridian is marching on your city to break it up. Hold the line.":"Driven off every region, the Warmonger of Meridian gathers his guard for one final strike at your city."}</p><button class="btn" ${ok?"":"disabled"} onclick="expedition('final')">Face the Warmonger</button></div>`:""}
+    ${summitPanel()}
     ${plotPanel()}
     <div class="panel map">${mapSVG()}
       <div class="legend">${legendKeys.map(k=>`<span><i style="background:${ctrlInfo(k).color}"></i>${ctrlInfo(k).label} (${counts[k]})</span>`).join("")}</div></div>
@@ -532,7 +533,7 @@ function makeEnemies(r, kind){
   const c = S.ctrl[r.id], d = r.danger, n = clamp(1 + Math.ceil(teamHeroes().length*0.7) + (d>4?1:0), 1, 4);
   let list = [];
   if (kind==="final"){
-    const k = 1 + Math.min(S.wm.str, 3 + teamLevel())*0.06;
+    const k = (1 + Math.min(S.wm.str, 3 + teamLevel())*0.06) * (1 + 0.08*REGIONS.filter(x=>S.ctrl[x.id]==="Warmonger").length);
     const fm = govFx().finalMult; list = [enemyStats("Warmonger Guard",8,k*fm), enemyStats("The Warmonger of Meridian",9,k*1.4*fm,true), enemyStats("Warmonger Guard",8,k*fm)];
   } else if (kind==="patrol"){
     for(let i=0;i<n-1;i++) list.push(enemyStats(pickOne(MONSTERS),d,.9));
@@ -588,7 +589,7 @@ function storyChoice(i){
   const r = regionById(S.selected), c = r.story.choices[i]; closeModal();
   if (c.fight){ startCombat(makeEnemies(r,"story"), r, "story"); return; }
   const b = bestFor(c), roll = d20(), total = roll + b.val - 5 - (S.flared[r.id]?2:0);
-  if (total >= c.dc || roll===20){ resolveFlashpoint(r); log(`${b.h.name}: ${c.ok}`, "ember"); }
+  if (total >= c.dc || roll===20){ resolveFlashpoint(r); S.settled.peace++; log(`${b.h.name}: ${c.ok}`, "ember"); }
   else { teamHeroes().forEach(h=>h.hp=Math.max(1,h.hp-(4+r.danger*2))); log(`${b.h.name}: ${c.bad} The team is hurt. You can try again another day.`, "bad"); }
   endDay(); save(); render();
 }
@@ -680,7 +681,7 @@ function demandsPanel(){
 function plotPanel(){
   if (!act2() || S.won) return "";
   const st = plotStep();
-  if (!st) return `<div class="panel"><h2>☣ The Blight Conspiracy</h2><p class="small muted">Stopped. The Blight stockpile is destroyed. Act 3, the Summit, comes in a later update.</p></div>`;
+  if (!st) return `<div class="panel"><h2>☣ The Blight Conspiracy</h2><p class="small muted">Stopped. The Blight stockpile is destroyed.</p></div>`;
   const held = HOSTILE.includes(S.ctrl[st.region]);
   return `<div class="panel"><h2>☣ The Blight Conspiracy · ${S.plot.step+1} of ${PLOT.length}</h2><p class="small"><b>${st.title}</b> in ${st.region}.</p>
     <p class="small muted">${held?`${ctrlInfo(S.ctrl[st.region]).label} hold ${st.region}. Liberate it first.`:"Send your team there to follow the trail."} Every 8 days the trail goes cold, the Warmonger grows stronger.</p>
@@ -709,7 +710,49 @@ function advancePlot(){
   teamHeroes().forEach(h=>giveXP(h, 40+r.danger*10));
   S.plot.step++; S.plot.day = S.day;
   log(st.done, "ember");
-  if (st.final){ S.wm.str = Math.max(3, S.wm.str-2); S.wm.lieutenants = Math.max(0, S.wm.lieutenants-1); FNAMES.forEach(f=>S.rep[f]+=3); S.credits += 150; log("Every faction hears what your team did. +3 standing with all of them, +150 credits, and one of the Warmonger's lieutenants is exposed and arrested.", "good"); }
+  if (st.final){ S.act = 3; S.wm.str = Math.max(3, S.wm.str-2); S.wm.lieutenants = Math.max(0, S.wm.lieutenants-1); FNAMES.forEach(f=>S.rep[f]+=3); S.credits += 150; log("Act 3 begins: the factions are ready to meet at a Meridian Summit, if your city can host it. Every faction hears what your team did. +3 standing with all of them, +150 credits, and one of the Warmonger's lieutenants is exposed and arrested.", "good"); }
+}
+
+// ---------- Act 3: The Summit and the endings ----------
+function summitReqs(){
+  const trusted = FNAMES.filter(f=>S.rep[f]>=8).length;
+  return [
+    {label:"Your city is a City (Council Hall level 3)", ok:bl("hall")>=3},
+    {label:`Standing of 8 or more with at least 3 factions (now ${trusted})`, ok:trusted>=3},
+    {label:`Unrest below 40 (now ${S.city.unrest})`, ok:S.city.unrest<40}
+  ];
+}
+function summitPanel(){
+  if ((S.act||1) < 3 || S.won) return "";
+  if (S.summit) return "";
+  const reqs = summitReqs(), ready = reqs.every(x=>x.ok);
+  return `<div class="panel"><h2>🏛️ Act 3: The Meridian Summit</h2>
+    <p class="small">The Blight is gone, and the factions are ready to talk peace. The Meridian Council wants to hold the Summit in your city, if it is strong and trusted enough to host it.</p>
+    <ul class="small" style="margin:6px 0 10px;padding-left:18px">${reqs.map(x=>`<li style="color:${x.ok?"var(--good)":"var(--muted)"}">${x.ok?"✓":"○"} ${x.label}</li>`).join("")}</ul>
+    <p class="small muted">The Warmonger will try to stop the Summit by force. Every region he still holds makes his last stand stronger.${S.gov.laws.includes("neutral")?" Your Neutral Ground law makes it 15% weaker.":""}</p>
+    <button class="btn" ${ready?"":"disabled"} onclick="hostSummit()">Host the Summit</button></div>`;
+}
+function hostSummit(){
+  if (!summitReqs().every(x=>x.ok)) return;
+  S.summit = true; S.wm.ready = true;
+  FNAMES.forEach(f=>S.rep[f]+=5);
+  log("The Meridian Summit opens in your city. Delegates from every faction sit at one table for the first time in a thousand years. Then the alarms sound: the Warmonger of Meridian is marching on the Summit.", "ember");
+  save(); render();
+}
+const ENDINGS = {
+  bridge:  {title:"The Bridge Holds", text:"North and south signed the Meridian Accord in your city, and every faction trusts you enough to keep it. Polaris still shines over a planet that finally chose peace."},
+  iron:    {title:"The Iron Peace", text:"The war is over because your city made it so, by force when it had to. The peace holds, but it is guarded by soldiers, and some still remember who fought them."},
+  merchant:{title:"The Merchant Dawn", text:"Trade, not treaties, ended the war. Alloy money now flows north and south through your markets, and every faction has a reason to keep the roads open."},
+  wells:   {title:"The Wells Restored", text:"The Soul-Wells are safe and the old traditions guide the new city. The south breathes easier, though the north still watches warily."},
+  fragile: {title:"A Fragile Peace", text:"The Warmonger is gone, but the factions still eye each other across the Meridian. Your city stands between them, and the peace depends on it every single day."}
+};
+function endingKey(){
+  const st = S.settled || {peace:0, force:0}, trusted = FNAMES.filter(f=>S.rep[f]>=10).length, ch = S.gov && S.gov.charter;
+  if (S.summit && trusted>=3 && st.peace>=st.force) return "bridge";
+  if (ch==="martial" || st.force > st.peace+2) return "iron";
+  if (ch==="merchant") return "merchant";
+  if (ch==="covenant") return "wells";
+  return "fragile";
 }
 
 // ---------- Exploring: world actions ----------
@@ -852,8 +895,8 @@ function endCombat(){
   c.ids.forEach(id=>{ const h=heroById(id); if(h.hp<=0) h.hp=1; });
   const r = regionById(c.region);
   if (c.result==="win"){
-    if (c.kind==="final"){ S.won=true; S.wm.ready=false; log("The Warmonger of Meridian is defeated. The war is over for good.", "ember"); save(); render(); return; }
-    if (c.kind==="story"){ resolveFlashpoint(r); }
+    if (c.kind==="final"){ S.won=true; S.wm.ready=false; log(`The Warmonger of Meridian is defeated. The war is over for good. Ending: ${ENDINGS[endingKey()].title}.`, "ember"); save(); render(); return; }
+    if (c.kind==="story"){ resolveFlashpoint(r); S.settled.force++; }
     else if (c.kind==="plot"){ advancePlot(); }
     else if (c.kind==="patrol"){ log(`Your team cleared monsters around ${r.id}.`, "good"); if(S.rep[S.ctrl[r.id]]!==undefined) S.rep[S.ctrl[r.id]]+=2; }
     else { const was = S.ctrl[r.id]; if (was==="Warmonger"){ S.wm.lieutenants=Math.max(0,S.wm.lieutenants-1); S.wm.str=Math.max(3,S.wm.str-0.5); } log(`Your team drove the ${was==="Warmonger"?"Warmonger's forces":was.toLowerCase()} out of ${r.id}.`, "good"); return chooseGovernor(r); }
@@ -1080,7 +1123,7 @@ function endingText(){
     "Southern Plateau":"With the Plateau leading the council, the Soul-Wells are protected and the northern pumps fall silent.",
     "Crosswalkers":"With the Crosswalkers leading the council, north and south still argue, but now they argue at the same table."
   };
-  return `${esc(heroById(S.team[0])?.name || S.heroes[0].name)} and the Meridian ${tier()} have beaten the Warmonger. ${E[r]} In the city, the mood is ${cu.name.toLowerCase()}.${S.gov&&S.gov.charter?` It is governed as a ${CHARTERS[S.gov.charter].name}${S.gov.laws.length?`, under the ${S.gov.laws.map(l=>LAWS[l].name).join(" and the ")}`:""}.`:""}`;
+  return `${esc(heroById(S.team[0])?.name || S.heroes[0].name)} and the Meridian ${tier()} have beaten the Warmonger. ${E[r]}${S.summit?" The peace was signed at the Meridian Summit, inside your walls.":" The war ended on the battlefield, not at a table."} ${(S.settled||{}).peace>=(S.settled||{}).force?"Most flashpoints were settled with words, not weapons.":"Most flashpoints were settled by force."} In the city, the mood is ${cu.name.toLowerCase()}.${S.gov&&S.gov.charter?` It is governed as a ${CHARTERS[S.gov.charter].name}${S.gov.laws.length?`, under the ${S.gov.laws.map(l=>LAWS[l].name).join(" and the ")}`:""}.`:""}`;
 }
 
 // ---------- Modal / toast ----------
