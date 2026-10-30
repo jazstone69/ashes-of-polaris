@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ashes of Polaris</title>
-<meta name="description" content="Ashes of Polaris: a free sci-fi strategy RPG in your browser. Lead a city in the Neutral Zone, hire a team of heroes, and push the Warmonger of Meridian off the map.">
+<meta name="description" content="Ashes of Polaris: a free idle sci-fi strategy RPG in your browser. Lead a city in the Neutral Zone, hire a team of heroes, and push the Warmonger of Meridian off the map.">
 <meta name="theme-color" content="#0b0d14">
 <meta property="og:title" content="Ashes of Polaris">
 <meta property="og:description" content="Build a city on Aurelia, hire a team of heroes, and push the Warmonger of Meridian off the map. Free to play in your browser.">
@@ -94,6 +94,8 @@ input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var
 .cityart{display:block;width:100%;height:auto;border-radius:10px;margin:4px 0 10px;border:1px solid var(--line)}
 .alertp{border-color:var(--c-war);background:linear-gradient(180deg,#e5484d22,transparent)}
 .alertp h2{color:#ff8f8f}
+.speed{display:inline-flex;gap:4px;margin-left:auto}.speed .tag{cursor:pointer;background:none}.speed .tag.on{background:var(--ember);color:#111;border-color:var(--ember)}
+.dayclock{height:3px;background:#ffffff12}.dayclock i{display:block;height:100%;width:0;background:var(--ember);transition:width 1s linear}
 .tag.alarm{background:#e5484d;color:#fff;border-color:#e5484d}
 </style>
 </head>
@@ -263,7 +265,7 @@ let AC = null;
 function soundOn(){ try{ return localStorage.getItem("aop-sound")!=="off"; }catch(e){ return true; } }
 function toggleSound(){ try{ localStorage.setItem("aop-sound", soundOn()?"off":"on"); }catch(e){} render(); }
 function sfx(kind){
-  if (!soundOn()) return;
+  if (!soundOn() || QUIET) return;
   try{
     AC = AC || new (window.AudioContext||window.webkitAudioContext)();
     const notes = {click:[[660,.04]], good:[[523,.08],[784,.12]], ember:[[523,.08],[659,.08],[988,.18]], bad:[[220,.12],[165,.2]], hit:[[180,.06]], win:[[523,.1],[659,.1],[784,.1],[1047,.3]], alarm:[[880,.14],[660,.14],[880,.14],[660,.22]]}[kind] || [];
@@ -362,7 +364,7 @@ function voteTally(k){ const yes = S.gov.seats.filter(w=>seatVote(w,LAWS[k])).le
 const SAVE_KEY = "aop-save-v3";
 let S = null, draft = null, tab = "map", C = null;
 function load(){ try{ const t = localStorage.getItem(SAVE_KEY); return t ? JSON.parse(t) : null; }catch(e){ return null; } }
-function save(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
+function save(){ if (QUIET) return; try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 function rand(n){ return Math.floor(Math.random()*n); }
 function pickOne(a){ return a[rand(a.length)]; }
 function d20(){ return 1 + rand(20); }
@@ -562,30 +564,124 @@ function threatPanel(){
   const team = teamHeroes().filter(h=>h.hp>0), b = defendBonus();
   return `<div class="panel alertp" role="alert"><h2>⚠️ Attack warning</h2>${own.map(t=>{ const r=regionById(t.target);
     return `<p><b>${ATTACKER[t.by]}</b> will attack ${r.city?"your city":`${t.target} (${S.ctrl[t.target]==="Protectorate"?"your Protectorate":"your outpost"})`} at the end of today. Odds it holds: <b>${holdChance(t)}%</b>${team.length?`, or <b>${holdChance(t,b)}%</b> if your team defends it`:""}.</p>
-      <div class="row"><button class="btn" ${team.length?"":"disabled"} onclick="defendTarget('${t.target}')">🛡️ Defend ${r.city?"the city":t.target} (ends the day)</button>${r.city&&tab!=="city"?`<button class="btn ghost sm" onclick="setTab('city')">Build defenses</button>`:""}</div>`; }).join("")}
-    <p class="small muted">${team.length?`Your team adds +${b} defense while it stands guard.`:"Pick a healthy team on the Team tab to defend."} Barracks${regionById(own[0].target).city?"":", outposts and secured routes"} make attacks easier to hold off.</p></div>`;
+      ${r.city&&tab!=="city"?`<div class="row"><button class="btn ghost sm" onclick="setTab('city')">Build defenses</button></div>`:""}`; }).join("")}
+    <p class="small muted">${team.length?`Your team will come home and stand guard, adding +${b} defense.`:"Pick a healthy team on the Team tab so someone can defend."} Barracks${regionById(own[0].target).city?"":", outposts and secured routes"} make attacks easier to hold off.</p></div>`;
 }
 function showAlerts(){
-  if (!S || !S.alerts || !S.alerts.length || C || $modal.innerHTML) return;
+  if (!S || !S.alerts || !S.alerts.length || QUIET) return;
   const A = S.alerts; S.alerts = [];
-  const hits = A.filter(a=>a.hit), warns = A.filter(a=>a.warn && (S.threats||[]).some(t=>t.target===a.warn));
-  if (!hits.length && !warns.length){ save(); return; }
-  const lost = hits.some(a=>!a.held);
-  setTimeout(()=>{ sfx("alarm"); }, 80);
-  modal(`${hits.map(a=>`<h2>${a.held?"🛡️ Attack beaten back":"🚨 "+(regionById(a.hit).city?"Your city was attacked!":a.hit+" has fallen!")}</h2><p>${esc(a.text)}</p>`).join("")}
-    ${warns.length?threatPanel().replace('class="panel alertp" role="alert"','')+"":""}
-    <div class="row" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">${warns.length?"I'll handle it":"OK"}</button></div>`);
-  save();
+  A.forEach(a=>{ if (a.hit) toast(a.held?`🛡️ ${a.text}`:`🚨 ${a.text}`); else if (a.warn && (S.threats||[]).some(t=>t.target===a.warn)) toast(`⚠️ Attack coming at ${regionById(a.warn).city?"your city":a.warn} tomorrow. The team will defend it.`); });
+  sfx("alarm"); save();
 }
+
+
+// ---------- Idle engine: the days run on their own and the team acts by itself ----------
+const DAY_MS = 30000, OFFLINE_MAX = 60;
+let AUTO = false, QUIET = false, lastNow = Date.now();
+function dayMs(){ return DAY_MS / (S.idle.speed||1); }
+function readyTeam(){ const t = teamHeroes(); return t.length && t.every(h=>h.hp > maxHP(h)*.55) ? t : null; }
+function reach(r){ return r.danger <= teamLevel() + 1 + (teamHeroes().length>=3?1:0); }
+function bestChoice(choices, odds){ let bi=-1, bo=-1; choices.forEach((c,i)=>{ if (!c.fight){ const o = odds(c); if (o>bo){bo=o;bi=i;} } }); return bo>=45 ? {i:bi, text:choices[bi].label, odds:bo} : {i:choices.findIndex(c=>c.fight), text:"fight", odds:null}; }
+function autoGovernor(r){ const g = S.idle.gov; if (g==="protectorate") return "Protectorate"; if (g==="mine") return S.faction; return FNAMES.includes(r.home) ? r.home : S.faction; }
+// Decide what the team does today. Returns {text, run}. Runs one day when called.
+function planDay(){
+  const team = teamHeroes();
+  if (!team.length) return {text:"Nobody is on the team. Pick heroes on the Team tab.", run:null};
+  const own = ownThreats();
+  if (own.length && team.some(h=>h.hp>0)){ const t = own[0]; return {text:`Defend ${regionById(t.target).city?"the city walls":t.target} against ${ATTACKER[t.by].replace(/^The |^A /,"the ")}`, run:()=>defendTarget(t.target)}; }
+  if (!readyTeam()) return {text:"Rest and heal in the city", run:null};
+  const focus = S.focus && regionById(S.focus);
+  const cand = [];
+  // the Blight plot
+  const st = plotStep(); if (act2() && st && !HOSTILE.includes(S.ctrl[st.region])){ const r = regionById(st.region), b = bestChoice(st.choices, plotOdds); cand.push({r, text:`☣ ${st.title} in ${r.id}: ${b.text==="fight"?"fight through":b.text.toLowerCase()}`, run:()=>{ S.selected=r.id; plotChoice(b.i); }}); }
+  // flashpoints
+  REGIONS.filter(r=>!r.city && !S.resolved[r.id] && !HOSTILE.includes(S.ctrl[r.id]) && r.story && (reach(r)||r.id===S.focus)).sort((a,b)=>a.danger-b.danger).forEach(r=>{ S.selected=r.id; const b = bestChoice(r.story.choices, checkOdds); cand.push({r, text:`${S.flared[r.id]?"Flare-up":"Flashpoint"} in ${r.id}: ${b.text==="fight"?"fight it out":b.text.toLowerCase()}`, run:()=>{ S.selected=r.id; storyChoice(b.i); }}); });
+  // exploring
+  REGIONS.filter(r=>!r.city && !HOSTILE.includes(S.ctrl[r.id])).forEach(r=>{
+    const k = !S.found[r.id] ? "scout" : !S.outposts[r.id] ? "repair" : null;
+    if (k && !worldBlocked(k,r)) cand.push({r, text:`${WORLD[k].label} in ${r.id}`, run:()=>{ S.selected=r.id; worldAct(k); }, low:true});
+  });
+  let pick = (focus && cand.find(c=>c.r.id===focus.id)) || cand.find(c=>!c.low) || cand[0];
+  if (pick) return pick;
+  // nothing urgent: earn
+  const safe = REGIONS.filter(r=>!r.city && !HOSTILE.includes(S.ctrl[r.id]) && r.trade);
+  const r = (focus && safe.find(x=>x.id===focus.id)) || safe[S.day % Math.max(1,safe.length)];
+  if (!r) return {text:"Rest in the city", run:null};
+  return S.day%2 ? {r, text:`Gather supplies in ${r.id}`, run:()=>{ S.selected=r.id; worldAct("gather"); }} : {r, text:`Patrol ${r.id} for monsters`, run:()=>{ S.selected=r.id; autoBattle(r,"patrol"); }};
+}
+function autoTurn(kind){
+  const h = actor(); if (!h) return;
+  const L = living(), low = L.find(x=>x.hp < maxHP(x)*.35);
+  const hpNow = L.reduce((a,x)=>a+x.hp,0), hpMax = C.ids.map(heroById).reduce((a,x)=>a+maxHP(x),0);
+  let k = low && S.items.medkit ? "medkit" : h.en >= abilityCost(h) ? "ability" : "attack";
+  if (kind!=="final" && hpNow < hpMax*.2 && !S.items.medkit) k = "retreat";
+  act(k);
+}
+function autoFinish(){ AUTO = true; try { let n=0; while (C && !C.over && n++<600) autoTurn(C.kind); } finally { AUTO = false; } renderCombat(); }
+function autoBattle(r, kind){
+  startCombat(makeEnemies(r,kind), r, kind);
+  let n = 0;
+  while (!C.over && n++ < 600){ if (!actor()) break; autoTurn(kind); }
+  const res = C.result || "retreat", names = {final:"the Warmonger's last stand", liberate:"the liberation of "+r.id, patrol:"a patrol in "+r.id, story:"the "+r.id+" flashpoint", plot:"the Blight trail in "+r.id};
+  S.lastBattle = {day:S.day, title:names[kind]||r.id, result:res, lines:C.log.slice(-12)};
+  log(`⚔️ Battle report, ${names[kind]||r.id}: ${res==="win"?"victory":res==="lose"?"defeat":"the team pulled back"}. ${C.log[C.log.length-1]||""}`, res==="win"?"good":"bad");
+  endCombat();
+}
+function autoUpkeep(){
+  S.heroes.forEach(h=>{ while (h.statPoints>0){ h.statPoints--; h.statBonus[mainStat(h)] = (h.statBonus[mainStat(h)]||0)+1; } });
+  if (act2()) S.demands.slice().forEach(d=>{ if (d.until - S.day <= 1){ const i = S.demands.indexOf(d); answerDemand(i, S.idle.grant && canGrant(d)); } });
+  if ((S.act||1)>=3 && !S.summit && !S.won && summitReqs().every(x=>x.ok)) hostSummit();
+}
+function idleDay(){
+  AUTO = true;
+  try { autoUpkeep(); const p = planDay(); if (p.run) p.run(); else { if (p.text.startsWith("Rest")) log(`The team rests in the city.`); endDay(); } }
+  finally { AUTO = false; C = null; }
+  if (!QUIET){ save(); render(); }
+}
+function blocked(){ return !S || !S.idle || !S.idle.speed || C || $modal.innerHTML || draft; }
+function tick(){
+  const now = Date.now(), dt = now - lastNow; lastNow = now;
+  if (!S || !S.idle) return;
+  if (blocked()){ S.lastTick += dt; return; }
+  const due = Math.floor((now - S.lastTick) / dayMs());
+  if (due > 3){ catchUp(due, false); return; }
+  for (let i=0;i<due;i++){ S.lastTick += dayMs(); idleDay(); if (blocked()) break; }
+  const el = document.getElementById("clock"); if (el){ const left = Math.max(0, dayMs() - (now - S.lastTick)); el.style.width = `${100 - left/dayMs()*100}%`; }
+  const nx = document.getElementById("nextin"); if (nx) nx.textContent = `${Math.ceil(Math.max(0, dayMs() - (now - S.lastTick))/1000)}s`;
+}
+function catchUp(days, offline){
+  const n = Math.min(days, OFFLINE_MAX), before = {credits:S.credits, alloy:S.alloy, food:S.food, day:S.day, lib:REGIONS.filter(r=>!HOSTILE.includes(S.ctrl[r.id])).length, lv:teamLevel()};
+  const logLen = S.log.length, mark = S.log[0];
+  QUIET = true;
+  try { for (let i=0;i<n && !S.won;i++) idleDay(); } finally { QUIET = false; }
+  S.lastTick = Date.now(); S.alerts = [];
+  const news = []; for (const l of S.log){ if (l===mark) break; if (/Battle report|seizes|raids|Act |defeated|joins|resolved|Ending/.test(l.t)) news.push(l.t); }
+  const free = REGIONS.filter(r=>!HOSTILE.includes(S.ctrl[r.id])).length;
+  save(); render();
+  modal(`<h2>${offline?"🌙 While you were away":"⏩ Catching up"}</h2><p class="muted">${S.day-before.day} days passed${days>n?` (the most a trip away can cover is ${OFFLINE_MAX} days)`:""}.</p>
+    <div class="stats"><div><span class="small muted">Credits</span><b>${S.credits-before.credits>=0?"+":""}${S.credits-before.credits}</b></div><div><span class="small muted">Alloy</span><b>${S.alloy-before.alloy>=0?"+":""}${S.alloy-before.alloy}</b></div><div><span class="small muted">Food</span><b>${S.food-before.food>=0?"+":""}${S.food-before.food}</b></div><div><span class="small muted">Free regions</span><b>${free} (${free-before.lib>=0?"+":""}${free-before.lib})</b></div></div>
+    <div class="log" style="max-height:220px;overflow:auto;margin-top:10px">${news.slice(0,10).map(t=>`<p class="small">${esc(t)}</p>`).join("")||"<p class='small muted'>A quiet stretch.</p>"}</div>
+    <div class="row" style="margin-top:10px"><button class="btn" onclick="closeModal()">Back to the city</button></div>`);
+}
+function setSpeed(v){ S.idle.speed = v; S.lastTick = Date.now() - 0; save(); renderHUD(); }
+function setFocus(id){ S.focus = S.focus===id ? null : id; save(); render(); }
+function activityPanel(){
+  const p = planDay(), lb = S.lastBattle;
+  return `<div class="panel"><div class="spread"><h2>🧭 Team activity</h2><span class="tag">${S.idle.speed?`Next day in <span id="nextin">…</span>`:"Paused"}</span></div>
+    <p><b>Today:</b> ${esc(p.text)}${S.focus?` <span class="small muted">(focus: ${esc(S.focus)})</span>`:""}</p>
+    ${lb?`<details class="small"><summary>Last battle, day ${lb.day}: ${esc(lb.title)} · ${lb.result==="win"?"victory":lb.result==="lose"?"defeat":"pulled back"}</summary>${lb.lines.map(l=>`<p class="small muted" style="margin:2px 0">${l}</p>`).join("")}</details>`:""}
+    <div class="log" style="margin-top:8px">${S.log.slice(0,4).map(l=>`<p class="${l.c} small"><span class="muted">Day ${l.d}</span> · ${esc(l.t)}</p>`).join("")}</div></div>`;
+}
+setInterval(tick, 1000);
 
 // ---------- Rendering ----------
 const $app = document.getElementById("app"), $hud = document.getElementById("hud"), $tabs = document.getElementById("tabs"), $modal = document.getElementById("modal");
 function render(){
+  if (QUIET) return;
   if (!S){ $hud.hidden=true; $tabs.hidden=true; return draft ? renderCreate() : renderTitle(); }
   renderHUD(); $hud.hidden=false; $tabs.hidden=false;
-  $tabs.innerHTML = [["map","🪐 Map"],["team","🧭 Team"],["city","🏛️ City"],["log","📜 Log"]]
+  $tabs.innerHTML = [["map","🪐 Map"],["team",pendingPick()?"🧭 Team ✶":"🧭 Team"],["city","🏛️ City"],["log","📜 Log"]]
     .map(([k,l])=>`<button class="${tab===k?"on":""}" onclick="setTab('${k}')">${l}</button>`).join("");
-  const p = pendingPick(); if (p) return renderPick(p);
   ({map:renderMap,team:renderTeam,city:renderCity,log:renderLog})[tab]();
   showAlerts();
 }
@@ -594,7 +690,9 @@ function bar(cls,v,m){ return `<div class="bar ${cls}"><i style="width:${clamp(v
 function renderHUD(){
   const wm = REGIONS.filter(r=>S.ctrl[r.id]==="Warmonger").length;
   $hud.innerHTML = `<div class="in"><b>Day ${S.day}</b><span>💠 ${S.credits}</span><span>⚙️ ${S.alloy} Alloy</span><span>🌾 ${S.food}</span>
-    <span class="${S.city.unrest>50?"danger":""}">Unrest ${S.city.unrest}</span><span class="tag war">Warmonger: ${wm} region${wm===1?"":"s"}</span>${ownThreats().length?`<button class="tag alarm pulse" onclick="setTab('map')">⚠️ Attack coming</button>`:""}</div>`;
+    <span class="${S.city.unrest>50?"danger":""}">Unrest ${S.city.unrest}</span><span class="tag war">Warmonger: ${wm} region${wm===1?"":"s"}</span>${ownThreats().length?`<button class="tag alarm pulse" onclick="setTab('map')">⚠️ Attack coming</button>`:""}
+    <span class="speed">${[[0,"❚❚"],[1,"▶"],[2,"▶▶"],[4,"▶▶▶"]].map(([v,l])=>`<button class="tag ${S.idle.speed===v?"on":""}" aria-label="${v?`Speed ${v}x`:"Pause"}" onclick="setSpeed(${v})">${l}</button>`).join("")}</span></div>
+    <div class="dayclock"><i id="clock"></i></div>`;
 }
 
 function renderTitle(){
@@ -603,13 +701,14 @@ function renderTitle(){
     <img src="icon.svg" alt="" width="120" height="120" style="display:block;margin:0 auto 8px;border-radius:24px;box-shadow:0 0 40px #ff8a3d55"><h1>Ashes of Polaris</h1>
     <p class="muted">The first explorers crossed the dark to ${PLANET} by following a single star, ${STAR}. Then north and south fought for a thousand years.
     Now a fragile peace holds in the Central Meridian, and you have been given an empty plot of land there to build a city. But the Warmonger of Meridian wants the war back, and bandits and monsters roam the gaps between the factions.</p>
+    <p class="small">An idle strategy RPG: the days run on their own, your heroes explore and settle trouble by themselves, and your city keeps working while you're away. You choose which lands to take over and lead those battles yourself.</p>
     <div class="row" style="justify-content:center;margin-top:16px">
       ${has?`<button class="btn" onclick="continueGame()">Continue</button>`:""}
       <button class="btn ${has?"ghost":""}" onclick="startCreate()">New Game</button></div>
     ${has?`<p class="small muted" style="margin-top:12px">Starting a new game replaces your saved game.</p>`:""}</div>`;
 }
-function upgradeSave(){ S.gov=S.gov||{charter:null,seats:[...FNAMES,null],laws:[]}; S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; S.act=S.act||1; S.demands=S.demands||[]; S.flared=S.flared||{}; S.settled=S.settled||{peace:0,force:0}; S.threats=S.threats||[]; S.alerts=S.alerts||[]; }
-function continueGame(){ S = load(); upgradeSave(); tab="map"; render(); }
+function upgradeSave(){ S.gov=S.gov||{charter:null,seats:[...FNAMES,null],laws:[]}; S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; S.act=S.act||1; S.demands=S.demands||[]; S.flared=S.flared||{}; S.settled=S.settled||{peace:0,force:0}; S.threats=S.threats||[]; S.alerts=S.alerts||[]; S.idle=S.idle||{speed:1, gov:"home", grant:true}; S.lastTick=S.lastTick||Date.now(); }
+function continueGame(){ S = load(); upgradeSave(); tab="map"; render(); const due = Math.floor((Date.now()-S.lastTick)/DAY_MS); if (S.idle.speed && due>=2 && !S.won) catchUp(due, true); else S.lastTick = Date.now(); lastNow = Date.now(); }
 function startCreate(){ draft = {step:0,name:"",gender:null,race:null,faction:null,background:null}; render(); }
 
 const CREATE_STEPS = 4;
@@ -660,9 +759,9 @@ function pendingPick(){
   }
   return null;
 }
-function renderPick(p){
+function pickPanel(p){
   const opts = p.kind==="sub" ? SUBCLASSES[p.h.background] : SPECS[p.h.subclass], txt = p.kind==="sub"?SUB_TEXT:SPEC_TEXT;
-  $app.innerHTML = `<div class="panel"><h2>${esc(p.h.name)}: choose a ${p.kind==="sub"?"subclass":"specialization"}</h2><p class="muted">This choice is permanent.</p>
+  return `<div class="panel" style="border-color:var(--gold)"><h2>${esc(p.h.name)}: choose a ${p.kind==="sub"?"subclass":"specialization"}</h2><p class="muted">This choice is permanent.</p>
     <div class="grid">${opts.map(o=>`<button class="card" onclick="doPick('${p.h.id}','${p.kind}','${o}')"><b>${o}</b><span class="small muted">${txt[o]} ${p.kind==="sub"?(SUB_WORLD[o]?WORLD_SUB_TEXT(SUB_WORLD[o]):""):SPEC_WORLD[o]}</span></button>`).join("")}</div></div>`;
 }
 function doPick(id,kind,o){ const h=heroById(id); if(kind==="sub") h.subclass=o; else h.spec=o; h.hp=maxHP(h); log(`${h.name} is now a${/^[AEIOU]/.test(o)?"n":""} ${o}.`,"ember"); save(); render(); }
@@ -698,20 +797,21 @@ function renderMap(){
   const team = teamHeroes(), ok = team.length>0 && team.every(h=>h.hp>0);
   const counts = {}; REGIONS.forEach(x=>{ const k=S.ctrl[x.id]; counts[k]=(counts[k]||0)+1; });
   const legendKeys = ["City",...FNAMES,"Protectorate","Warmonger","Bandits","Monsters"].filter(k=>counts[k]);
-  let actions = "";
-  const T = terrainOf(r), explore = `<button class="btn ghost" ${ok?"":"disabled"} onclick="openExplore()">${T.icon} Explore</button>`;
-  if (r.city) actions = `<p class="small muted">Your city. Defense ${cityDefense()}. The Warmonger can raid it, but it can never be taken. You always get a day's warning before an attack.</p><div class="row"><button class="btn" onclick="setTab('city')">Manage the city</button>${explore}</div>${act2()&&S.demands.length?`<p class="small" style="margin-top:8px">📜 ${S.demands.length} faction demand${S.demands.length>1?"s":""} waiting on the City tab.</p>`:""}`;
-  else if (hostile) actions = `<p class="small muted">Danger ${r.danger}. Send your team to drive them out, then decide who governs the region.</p>
-      <button class="btn" ${ok?"":"disabled"} onclick="expedition('liberate')">Liberate with your team</button>`;
-  else actions = `<p class="small muted">Danger ${r.danger}. ${S.resolved[r.id]?"Flashpoint resolved.":S.flared[r.id]?"The flashpoint has flared up again, and it is tougher this time.":"A flashpoint is brewing here."}</p><div class="row">
+  const T = terrainOf(r), focused = S.focus===r.id;
+  let actions;
+  if (r.city) actions = `<p class="small muted">Your city. Defense ${cityDefense()}. The Warmonger can raid it, but it can never be taken. You always get a day's warning, and your team comes home to defend it.</p><button class="btn" onclick="setTab('city')">Upgrade the city</button>`;
+  else if (hostile) actions = `<p class="small muted">Danger ${r.danger}${reach(r)?"":" (very dangerous for your team right now)"}. The ${info.label} hold this land. Your team never attacks it on its own: you choose when to take it, and you lead the battle.</p>
+      <button class="btn" ${ok?"":"disabled"} onclick="expedition('liberate')">⚔️ Take over this land</button>${ok?"":`<p class="small danger">A hero on the team is down. Let them rest or swap them out.</p>`}`;
+  else actions = `<p class="small muted">Danger ${r.danger}. ${S.resolved[r.id]?"Flashpoint resolved.":S.flared[r.id]?"The flashpoint has flared up again, and it is tougher this time.":"A flashpoint is brewing here. Your team will deal with it when it can, or you can make the call yourself."}</p><div class="row">
       ${plotHere(r)?`<button class="btn" ${ok?"":"disabled"} onclick="openPlot()">☣ ${plotHere(r).title}</button>`:""}
       ${!S.resolved[r.id]?`<button class="btn ice" ${ok?"":"disabled"} onclick="openStory()">${S.flared[r.id]?"Flare-up":"Flashpoint"}: ${r.story.title}</button>`:""}
-      <button class="btn" ${ok?"":"disabled"} onclick="expedition('patrol')">Patrol</button>
-      <button class="btn ghost" ${ok?"":"disabled"} onclick="tradeRun()">Trade run</button>${explore}</div>`;
+      <button class="btn ghost" ${ok?"":"disabled"} onclick="openExplore()">${T.icon} Explore</button>
+      <button class="btn ghost" onclick="setFocus('${r.id}')">${focused?"Stop focusing here":"🎯 Focus the team here"}</button></div>`;
   const wmLeft = REGIONS.filter(x=>S.ctrl[x.id]==="Warmonger").length;
   $app.innerHTML = `
     ${S.won?`<div class="panel"><h2>✶ ${ENDINGS[endingKey()].title}</h2><p>${ENDINGS[endingKey()].text}</p><p class="small">${endingText()}</p><p class="small muted">Your city keeps running. Keep playing, or start over from the title screen.</p><button class="btn ghost" onclick="toTitle()">Title screen</button></div>`:""}
-    ${!S.won && S.wm.ready?`<div class="panel"><h2>⚔️ The Warmonger's last stand</h2><p>${S.summit?"The Summit is in session, and the Warmonger of Meridian is marching on your city to break it up. Hold the line.":"Driven off every region, the Warmonger of Meridian gathers his guard for one final strike at your city."}</p><button class="btn" ${ok?"":"disabled"} onclick="expedition('final')">Face the Warmonger</button></div>`:""}
+    ${!S.won && S.wm.ready?`<div class="panel"><h2>⚔️ The Warmonger's last stand</h2><p>${S.summit?"The Summit is in session, and the Warmonger of Meridian is marching on your city to break it up.":"Driven off every region, the Warmonger of Meridian gathers his guard for one final strike at your city."} You lead this battle yourself. ${teamLevel()<6?`Your team's average level is ${teamLevel().toFixed(1)}, so you may want to train them first.`:""}</p><button class="btn" ${teamHeroes().length&&teamHeroes().every(h=>h.hp>0)?"":"disabled"} onclick="expedition('final')">Face the Warmonger</button></div>`:""}
+    ${activityPanel()}
     ${threatPanel()}
     ${summitPanel()}
     ${plotPanel()}
@@ -720,9 +820,8 @@ function renderMap(){
     <div class="panel"><div class="spread"><h2>${r.icon} ${r.id}</h2><span class="tag" style="color:${info.color};border-color:${info.color}">${info.label}</span></div>
       <p class="small muted">${T.icon} ${REGION_TERRAIN[r.id]} · Hazard: ${T.hazard.toLowerCase()} (a ${T.counter} on the team avoids it)${S.outposts[r.id]?" · 🏕️ Your outpost":""}${(S.secured[r.id]||0)>S.day?" · Routes secured":""}${S.found[r.id]?" · Secret found":""}</p>
       ${actions}
-      <p class="small muted" style="margin-top:10px">Team: ${team.length?team.map(h=>`${esc(h.name)} (${h.hp}/${maxHP(h)} HP)`).join(", "):"nobody. Pick a team on the Team tab."}${team.some(h=>h.hp<=0)?" <span class='danger'>A downed hero can't go out. Rest a day or swap them out.</span>":""}</p>
-      <p class="small muted">Every trip out takes one day. ${wmLeft?`The Warmonger holds ${wmLeft} region${wmLeft>1?"s":""}. `:""}${!S.won?`Lieutenants still at large: ${S.wm.lieutenants}. Beat them all and drive him off the map to force his last stand.`:""}</p>
-      <button class="btn ghost sm" onclick="endDay();render()">Rest a day</button></div>`;
+      <p class="small muted" style="margin-top:10px">Team: ${team.length?team.map(h=>`${esc(h.name)} (${h.hp}/${maxHP(h)} HP)`).join(", "):"nobody. Pick a team on the Team tab."}</p>
+      <p class="small muted">Your team picks one job a day on its own. Focus it on a region to send it there first. ${wmLeft?`The Warmonger holds ${wmLeft} region${wmLeft>1?"s":""}. `:""}${!S.won?`Lieutenants still at large: ${S.wm.lieutenants}.`:""}</p></div>`;
 }
 function toTitle(){ S=null; render(); }
 
@@ -788,7 +887,7 @@ function openStory(){
 }
 function storyChoice(i){
   const r = regionById(S.selected), c = r.story.choices[i]; closeModal();
-  if (c.fight){ startCombat(makeEnemies(r,"story"), r, "story"); return; }
+  if (c.fight){ if (AUTO) return autoBattle(r,"story"); startCombat(makeEnemies(r,"story"), r, "story"); return; }
   const b = bestFor(c), roll = d20(), total = roll + b.val - 5 - (S.flared[r.id]?2:0);
   if (total >= c.dc || roll===20){ resolveFlashpoint(r); S.settled.peace++; log(`${b.h.name}: ${c.ok}`, "ember"); }
   else { teamHeroes().forEach(h=>h.hp=Math.max(1,h.hp-(4+r.danger*2))); log(`${b.h.name}: ${c.bad} The team is hurt. You can try again another day.`, "bad"); }
@@ -900,7 +999,7 @@ function openPlot(){
 }
 function plotChoice(i){
   const st = plotStep(), r = regionById(st.region), c = st.choices[i]; closeModal();
-  if (c.fight){ startCombat(makeEnemies(r,"plot"), r, "plot"); return; }
+  if (c.fight){ if (AUTO) return autoBattle(r,"plot"); startCombat(makeEnemies(r,"plot"), r, "plot"); return; }
   const b = bestFor(c), roll = d20();
   if (roll===20 || roll + b.val - 5 + plotBonus() >= c.dc){ log(`${b.h.name}: ${c.ok}`, "ember"); advancePlot(); }
   else { teamHeroes().forEach(h=>h.hp=Math.max(1,h.hp-(5+r.danger*2))); log(`${b.h.name}: ${c.bad} The team is hurt. You can try again another day.`, "bad"); }
@@ -1036,6 +1135,7 @@ function nextActor(start){
 }
 function actor(){ return heroById(C.ids[C.turn]); }
 function renderCombat(){
+  if (AUTO) return;
   const a = C.over ? null : actor();
   const fighters = C.enemies.map(e=>`<div class="fighter who ${e.hp<=0?"down":""}">${enemyArt(e,34)}<div><div class="spread small"><b>${e.boss?"⚠️ ":""}${e.name}</b><span>${e.hp}/${e.maxHp}</span></div>${bar("ehp",e.hp,e.maxHp)}</div></div>`).join("");
   const heroes = C.ids.map(heroById).map(h=>`<div class="fighter who ${h.hp<=0?"down":""} ${a&&a.id===h.id?"act":""}">${portrait(h,34)}<div><div class="spread small"><b>${esc(h.name)}</b><span>HP ${h.hp}/${maxHP(h)} · EN ${h.en}</span></div>${bar("hp",h.hp,maxHP(h))}</div></div>`).join("");
@@ -1048,7 +1148,8 @@ function renderCombat(){
       <button class="btn" onclick="act('attack')">Attack</button>
       <button class="btn ice" onclick="act('ability')" ${a.en<abilityCost(a)?"disabled":""}>${BACKGROUNDS[a.background].ability} (${abilityCost(a)} EN)</button>
       <button class="btn ghost" onclick="act('medkit')" ${S.items.medkit?"":"disabled"}>Medkit (${S.items.medkit})</button>
-      ${canRetreat?`<button class="btn ghost" onclick="act('retreat')">Retreat</button>`:""}</div>`}`);
+      ${canRetreat?`<button class="btn ghost" onclick="act('retreat')">Retreat</button>`:""}
+      <button class="btn ghost" onclick="autoFinish()">⏩ Auto-fight the rest</button></div>`}`);
 }
 function act(kind){
   const h = actor(), targets = foes(); if(!h) return;
@@ -1121,6 +1222,7 @@ function endCombat(){
   endDay(); save(); render();
 }
 function chooseGovernor(r){
+  if (AUTO) return setGovernor(r.id, autoGovernor(r));
   const opts = FNAMES.map(f=>`<button class="card" onclick="setGovernor('${r.id}','${f}')"><b>${f}</b><span class="small muted">+8 standing with them, −2 with the rest. They gain council power.${f===r.home?" This is their home region.":""}</span></button>`).join("");
   modal(`<h2>Who governs ${r.id}?</h2><p class="muted">The region is free. Your choice shifts the balance of power on the council.</p>
     <div class="grid" style="grid-template-columns:1fr">${opts}
@@ -1137,6 +1239,7 @@ function setGovernor(id,who){
 // ---------- Day cycle: the living map and changing politics ----------
 function normPower(){ const t = FNAMES.reduce((s,f)=>s+Math.max(1,S.power[f]),0); FNAMES.forEach(f=>S.power[f]=Math.round(Math.max(1,S.power[f])/t*100)); }
 function endDay(){
+  if (!AUTO && !QUIET && S.lastTick) S.lastTick = Date.now();
   const before = ruler(), inc = income(), cu = culture().fx;
   S.credits += inc.credits; S.alloy += inc.alloy; S.food += inc.food;
   if (S.food < 0){ S.food = 0; S.city.unrest += 6; log("Food ran out. Unrest is rising.", "bad"); }
@@ -1266,7 +1369,7 @@ function renderTeam(){
       <span class="meta">${h.race} · ${h.background}${h.subclass?" → "+h.subclass:""}${h.spec?" → "+h.spec:""}</span></div></div>
       <span class="small muted">${STATS.map(k=>`${k} ${stat(h,k)}`).join(" · ")}</span>
       <button class="btn sm" onclick="hire(${i})" ${S.credits<cost?"disabled":""}>Hire for ${cost} 💠</button></div>`; }).join("");
-  $app.innerHTML = `<div class="panel"><h2>Your team (${S.team.length}/${TEAM_MAX})</h2><p class="small muted">Pick up to ${TEAM_MAX} heroes to go out on expeditions. Heroes who stay home rest and heal.</p>
+  $app.innerHTML = `${S.heroes.map(h=>h.level>=SUB_LEVEL&&!h.subclass?{h,kind:"sub"}:h.level>=SPEC_LEVEL&&h.subclass&&!h.spec?{h,kind:"spec"}:null).filter(Boolean).map(pickPanel).join("")}<div class="panel"><h2>Your team (${S.team.length}/${TEAM_MAX})</h2><p class="small muted">Pick up to ${TEAM_MAX} heroes. The team goes out on its own every day. Heroes who stay home rest and heal. Stat points are spent on each hero's main stat automatically.</p>
     <div class="grid">${S.heroes.map(heroCard).join("")}</div></div>
     <div class="panel"><h2>Heroes for hire</h2><p class="small muted">New heroes arrive every few days, and stronger ones show up as time goes on. A Hiring Hall brings more of them.</p>
     <div class="grid">${pool||"<p class='muted'>Nobody is looking for work right now.</p>"}</div></div>`;
@@ -1311,6 +1414,8 @@ function renderCity(){
   <div class="panel"><h2>Buildings</h2><div class="grid">${Object.entries(BUILDINGS).map(([k,b])=>{ const l=bl(k), c=buildCost(k), maxed=l>=b.max, capped=k!=="hall"&&l>=bl("hall");
       return `<div class="card"><div class="spread"><b>${b.name}</b><span class="tag">Lv ${l}/${b.max}</span></div><span class="small muted">${b.text}</span>
       <div style="margin-top:8px">${maxed?`<span class="small muted">Fully built</span>`:capped?`<span class="small muted">Upgrade the Council Hall first</span>`:`<button class="btn sm" onclick="build('${k}')" ${canBuild(k)?"":"disabled"}>${l?"Upgrade":"Build"}: ${c.credits} 💠${c.alloy?`, ${c.alloy} Alloy`:""}</button>`}</div></div>`; }).join("")}</div></div>
+  <div class="panel"><h3>Standing orders</h3><p class="small muted">Your team and council follow these while the days run.</p>
+    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" ${S.idle.grant?"checked":""} onchange="S.idle.grant=this.checked;save()"> Grant faction demands when we can afford them (otherwise they are refused on the last day)</label></div>
   <div class="panel"><h3>Sound</h3><button class="btn ghost sm" onclick="toggleSound()">Sound: ${soundOn()?"on":"off"}</button></div>
   <div class="panel"><h3>Save</h3><p class="small muted">The game saves in this browser. Export a backup to move it to another device.</p>
     <div class="row"><button class="btn ghost sm" onclick="exportSave()">Export save</button><label class="btn ghost sm" tabindex="0">Import save<input type="file" accept=".json,application/json" hidden onchange="importSave(this.files[0])"></label>
@@ -1337,7 +1442,7 @@ function endingText(){
 }
 
 // ---------- Modal / toast ----------
-function modal(html){ $modal.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><div class="panel">${html}</div></div>`; }
+function modal(html){ if (AUTO) return; $modal.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><div class="panel">${html}</div></div>`; }
 function closeModal(){ $modal.innerHTML = ""; }
 function toast(t){ const d=document.createElement("div"); d.textContent=t; d.style.cssText="position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#000d;border:1px solid var(--line);padding:8px 14px;border-radius:10px;z-index:20"; document.body.appendChild(d); setTimeout(()=>d.remove(),2200); }
 
