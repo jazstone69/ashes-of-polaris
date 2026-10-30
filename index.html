@@ -89,6 +89,12 @@ input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 .pulse{animation:pulse 1.6s ease-in-out infinite}
+.portrait{flex:none;border-radius:50%;display:block}
+.who{display:flex;gap:10px;align-items:center}.who>div{flex:1;min-width:0}
+.cityart{display:block;width:100%;height:auto;border-radius:10px;margin:4px 0 10px;border:1px solid var(--line)}
+.alertp{border-color:var(--c-war);background:linear-gradient(180deg,#e5484d22,transparent)}
+.alertp h2{color:#ff8f8f}
+.tag.alarm{background:#e5484d;color:#fff;border-color:#e5484d}
 </style>
 </head>
 <body>
@@ -260,9 +266,9 @@ function sfx(kind){
   if (!soundOn()) return;
   try{
     AC = AC || new (window.AudioContext||window.webkitAudioContext)();
-    const notes = {click:[[660,.04]], good:[[523,.08],[784,.12]], ember:[[523,.08],[659,.08],[988,.18]], bad:[[220,.12],[165,.2]], hit:[[180,.06]], win:[[523,.1],[659,.1],[784,.1],[1047,.3]]}[kind] || [];
+    const notes = {click:[[660,.04]], good:[[523,.08],[784,.12]], ember:[[523,.08],[659,.08],[988,.18]], bad:[[220,.12],[165,.2]], hit:[[180,.06]], win:[[523,.1],[659,.1],[784,.1],[1047,.3]], alarm:[[880,.14],[660,.14],[880,.14],[660,.22]]}[kind] || [];
     let t = AC.currentTime;
-    notes.forEach(([f,d])=>{ const o=AC.createOscillator(), g=AC.createGain(); o.type = kind==="bad"||kind==="hit"?"sawtooth":"triangle"; o.frequency.value=f; g.gain.setValueAtTime(.07,t); g.gain.exponentialRampToValueAtTime(.001,t+d); o.connect(g).connect(AC.destination); o.start(t); o.stop(t+d); t+=d*.9; });
+    notes.forEach(([f,d])=>{ const o=AC.createOscillator(), g=AC.createGain(); o.type = kind==="bad"||kind==="hit"?"sawtooth":kind==="alarm"?"square":"triangle"; o.frequency.value=f; g.gain.setValueAtTime(.07,t); g.gain.exponentialRampToValueAtTime(.001,t+d); o.connect(g).connect(AC.destination); o.start(t); o.stop(t+d); t+=d*.9; });
   }catch(e){}
 }
 document.addEventListener("click", e=>{ if (e.target.closest("button")) sfx("click"); });
@@ -426,6 +432,152 @@ function income(){
   return {credits, alloy, food};
 }
 
+
+// ---------- Art ----------
+function hsh(t){ let x=7; for (const ch of String(t)) x=(x*31+ch.charCodeAt(0))>>>0; return x; }
+const BG_ART = {Soldier:{bg:"#3b4a63",cloth:"#7d8aa0"},Engineer:{bg:"#5a3a22",cloth:"#d0803f"},Diplomat:{bg:"#3a2b5a",cloth:"#7a5bb5"},Operative:{bg:"#1c1f29",cloth:"#3a3f4f"},Trade:{bg:"#4a3a22",cloth:"#9a7444"}};
+function portrait(h, size){
+  const k = hsh(h.name+h.id), A = BG_ART[h.background]||BG_ART.Soldier, race = h.race;
+  const SK = {Human:["#f1c7a5","#d9a07a","#a86b45","#7a4a2c","#4e2f1d"],Synthborn:["#9fb3c8","#b8c2cc","#8794a8"],Vael:["#c9b8e8","#b3c7e0","#d6c2d9"],Drakken:["#6f9a5a","#a0763c","#5a7f8a","#8a5a4a"]}[race]||["#d9a07a"];
+  const skin = SK[k%SK.length], HAIR = ["#1d1410","#3b2416","#7a4a1e","#c99a4a","#d8d8e0","#a8332f","#2d3b6b"], hair = HAIR[(k>>3)%HAIR.length], style = (k>>6)%5;
+  let back = "", front = "", feat = "";
+  if (race==="Human"||race==="Vael"){
+    if (style===1) back = `<path d="M18 30 Q17 46 22 50 L42 50 Q47 46 46 30Z" fill="${hair}"/>`;
+    if (style===3) back = `<circle cx="32" cy="12" r="6" fill="${hair}"/>`;
+    if (style!==4) front = style===2 ? `<path d="M29 16 Q32 4 35 16 Q33 22 32 22 Q31 22 29 16Z" fill="${hair}"/><path d="M21 26 Q32 18 43 26 Q42 20 32 18 Q22 20 21 26Z" fill="${hair}"/>` : `<path d="M20 28 Q19 14 32 14 Q45 14 44 28 Q40 20 32 21 Q24 20 20 28Z" fill="${hair}"/>`;
+  }
+  if (race==="Vael") feat += `<path d="M20 28 L12 20 L21 33Z M44 28 L52 20 L43 33Z" fill="${skin}"/><circle cx="32" cy="22" r="1.6" fill="#ffd166"/>`;
+  if (race==="Drakken") feat += `<path d="M22 20 L16 8 L26 17Z M42 20 L48 8 L38 17Z" fill="#e8dcc0"/><path d="M26 36 l3 2 3-2 3 2 3-2" stroke="#0004" fill="none"/><path d="M24 22 l4 2 4-2 4 2 4-2" stroke="#0003" fill="none"/>`;
+  if (race==="Synthborn") feat += `<path d="M21 24 L19 24 L19 34 M43 30 L46 30 L46 38" stroke="#5ff0ff" stroke-width="1.2" fill="none"/><path d="M24 16 Q32 10 40 16" stroke="#cfd8e3" stroke-width="3" fill="none"/>`;
+  const eyeL = race==="Synthborn" ? "#5ff0ff" : race==="Drakken" ? "#ffcf3a" : "#1a1a22";
+  let gear = "";
+  if (h.background==="Soldier") gear = `<circle cx="13" cy="54" r="7" fill="#aab4c4"/><circle cx="51" cy="54" r="7" fill="#aab4c4"/>`;
+  if (h.background==="Engineer") gear = `<rect x="21" y="19" width="22" height="5" rx="2" fill="#333"/><circle cx="26" cy="21.5" r="3" fill="#7fd6ff"/><circle cx="38" cy="21.5" r="3" fill="#7fd6ff"/>`;
+  if (h.background==="Diplomat") gear = `<path d="M24 46 L32 56 L40 46" stroke="#ffd166" stroke-width="2.5" fill="none"/>`;
+  if (h.background==="Operative") gear = `<path d="M16 50 Q14 14 32 10 Q50 14 48 50 L43 48 Q46 20 32 18 Q18 20 21 48Z" fill="#2a2e3a"/>`;
+  if (h.background==="Trade") gear = `<rect x="21" y="17" width="22" height="4" rx="2" fill="#5a4630"/><circle cx="32" cy="19" r="2.6" fill="#fff1a8"/>`;
+  const badge = h.spec ? `<path d="M54 4 l2.4 5 5.4.6-4 3.7 1.1 5.3-4.9-2.7-4.9 2.7 1.1-5.3-4-3.7 5.4-.6z" fill="#ffd166" stroke="#0b0d14"/>` : h.subclass ? `<circle cx="55" cy="9" r="4" fill="#c8d0e0" stroke="#0b0d14"/>` : "";
+  const id = "p"+k;
+  return `<svg class="portrait" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="${id}" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="${A.bg}"/><stop offset="1" stop-color="#0b0d14"/></radialGradient><clipPath id="c${id}"><circle cx="32" cy="32" r="32"/></clipPath></defs>
+    <g clip-path="url(#c${id})"><rect width="64" height="64" fill="url(#${id})"/>${back}
+    <path d="M6 66 Q8 46 32 44 Q56 46 58 66Z" fill="${A.cloth}"/><rect x="28" y="38" width="8" height="8" fill="${skin}"/>
+    ${feat}<ellipse cx="32" cy="30" rx="11.5" ry="13.5" fill="${skin}"/>${race==="Drakken"?`<path d="M24 22 l4 2 4-2 4 2 4-2" stroke="#0003" fill="none"/>`:""}
+    <ellipse cx="27.5" cy="30" rx="1.8" ry="2.2" fill="${eyeL}"/><ellipse cx="36.5" cy="30" rx="1.8" ry="2.2" fill="${race==="Synthborn"?"#1a1a22":eyeL}"/>
+    <path d="M29 37 Q32 39 35 37" stroke="#0007" stroke-width="1.3" fill="none"/>${front}${gear}</g>${badge}</svg>`;
+}
+function enemyArt(e, size){
+  const n = e.name, war = /Warmonger/.test(n), beast = MONSTERS.includes(n) || /Wyrm|Beast|Hound|Crawler|Ray|Spawn|Horror/.test(n);
+  let body;
+  if (war) body = `<path d="M6 66 Q8 46 32 44 Q56 46 58 66Z" fill="#5a1d22"/><path d="M18 34 Q16 12 32 10 Q48 12 46 34 L46 40 L18 40Z" fill="#3a3f4a"/><rect x="21" y="26" width="22" height="5" rx="2" fill="#e5484d"/>${e.boss?`<path d="M20 14 L24 4 L28 12 L32 2 L36 12 L40 4 L44 14Z" fill="#c9a227"/>`:`<path d="M32 4 L32 12" stroke="#e5484d" stroke-width="3"/>`}`;
+  else if (beast) body = `<ellipse cx="32" cy="42" rx="24" ry="18" fill="#3f6b2a"/><path d="M14 30 L8 14 L22 26Z M50 30 L56 14 L42 26Z" fill="#a8c46a"/><circle cx="25" cy="38" r="4" fill="#ffe14d"/><circle cx="39" cy="38" r="4" fill="#ffe14d"/><circle cx="25" cy="38" r="1.6"/><circle cx="39" cy="38" r="1.6"/><path d="M22 50 l3 4 3-4 3 4 3-4 3 4 3-4" stroke="#fff" fill="none"/>`;
+  else body = `<path d="M6 66 Q8 46 32 44 Q56 46 58 66Z" fill="#5a4330"/><ellipse cx="32" cy="30" rx="11.5" ry="13.5" fill="#b07a4f"/><rect x="20" y="31" width="24" height="9" rx="3" fill="#2a2420"/><ellipse cx="27.5" cy="27" rx="1.8" ry="2" fill="#111"/><ellipse cx="36.5" cy="27" rx="1.8" ry="2" fill="#111"/><path d="M20 22 Q32 10 44 22 Q32 18 20 22Z" fill="#7a3a2a"/>`;
+  return `<svg class="portrait" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true"><clipPath id="ce${hsh(n)}"><circle cx="32" cy="32" r="32"/></clipPath><g clip-path="url(#ce${hsh(n)})"><rect width="64" height="64" fill="${war?"#2a0f12":beast?"#14210f":"#241a12"}"/>${body}</g></svg>`;
+}
+function citySVG(){
+  const L = k=>bl(k), threat = ownThreats().some(t=>regionById(t.target).city), riot = S.city.unrest>50;
+  const win = (x,y,n,col)=>Array.from({length:n},(_,i)=>`<rect x="${x+i*6}" y="${y}" width="3" height="4" fill="${col||"#ffd98a"}" opacity="${.5+((i*7+x)%3)*.2}"/>`).join("");
+  let g = "";
+  // hydro farms
+  for (let i=0;i<L("farms");i++) g += `<path d="M${14+i*16} 132 a8 8 0 0 1 16 0z" fill="#3fa86b" opacity=".85"/><path d="M${16+i*16} 130 h12" stroke="#bff5d0" stroke-width=".8"/>`;
+  // workshop
+  if (L("workshop")){ const h=16+L("workshop")*5; g += `<rect x="82" y="${132-h}" width="26" height="${h}" fill="#4a4f5e"/><rect x="100" y="${118-h}" width="5" height="16" fill="#3a3f4a"/>${win(85,136-h,3,"#ff9a4a")}`+Array.from({length:L("workshop")},(_,i)=>`<circle cx="${103+i*3}" cy="${112-h-i*7}" r="${3+i}" fill="#9aa3b8" opacity="${.35-i*.06}"/>`).join(""); }
+  // infirmary
+  if (L("infirmary")){ const h=14+L("infirmary")*4; g += `<rect x="112" y="${132-h}" width="22" height="${h}" fill="#d9e2ec"/><path d="M123 ${136-h} v8 M119 ${140-h} h8" stroke="#2fb3a3" stroke-width="2.5"/>`; }
+  // council hall
+  const hl = L("hall");
+  if (hl<=1) g += `<path d="M150 132 L180 98 L210 132Z" fill="#c9773a"/><path d="M174 132 L180 116 L186 132Z" fill="#3a2414"/><path d="M180 98 v-10" stroke="#ffd166" stroke-width="1.5"/><path d="M180 88 l8 3 -8 3z" fill="#ffd166"/>`;
+  else {
+    const h = 26 + hl*10;
+    g += `<rect x="150" y="${132-h}" width="60" height="${h}" fill="#5c6680"/><rect x="146" y="${128-h}" width="68" height="6" fill="#7b86a3"/>${win(156,140-h,8)}${win(156,150-h,8)}<rect x="174" y="118" width="12" height="14" fill="#2a2f3e"/>`;
+    if (hl>=3) g += `<path d="M160 ${128-h} a20 20 0 0 1 40 0z" fill="#8fa0c8"/>`;
+    if (hl>=4) g += `<path d="M180 ${108-h} v-22" stroke="#cfd8e3" stroke-width="3"/><circle cx="180" cy="${84-h}" r="4" fill="#fff6d8"><animate attributeName="opacity" values="1;.4;1" dur="2s" repeatCount="indefinite"/></circle>`;
+  }
+  // market
+  for (let i=0;i<L("market");i++){ const x=218+i*13; g += `<rect x="${x}" y="122" width="11" height="10" fill="#6b4a2e"/><path d="M${x-1} 122 h13 l-2 -6 h-9z" fill="${["#e5484d","#ffd166","#34c3b5","#a77bf0"][i]}"/>`; }
+  // embassy
+  if (L("embassy")){ const h=18+L("embassy")*4; g += `<rect x="272" y="${132-h}" width="24" height="${h}" fill="#6a5a8a"/>${win(275,136-h,3)}`+FNAMES.slice(0,L("embassy")).map((f,i)=>`<path d="M${274+i*6} ${132-h} v-10" stroke="#ccc"/><path d="M${274+i*6} ${122-h} h5 v3 h-5z" fill="${FACTIONS[f].color}"/>`).join(""); }
+  // hiring hall
+  if (L("hiring")){ const h=14+L("hiring")*4; g += `<rect x="304" y="${132-h}" width="26" height="${h}" fill="#7a5a3a"/><rect x="306" y="${126-h}" width="22" height="6" fill="#ffd166"/><rect x="314" y="122" width="6" height="10" fill="#2a1f14"/>`; }
+  if (!hl && !g) g = "";
+  // tents for a young camp
+  if (hl<=1) g += `<path d="M58 132 l10 -12 10 12z M250 132 l9 -11 9 11z M330 132 l8 -10 8 10z" fill="#8a6a44"/>`;
+  // walls from barracks
+  const bk = L("barracks"), wall = bk ? `<rect x="0" y="${140-bk*3}" width="360" height="${bk*3+4}" fill="#3a3f4e"/>${Array.from({length:24},(_,i)=>`<rect x="${i*15+2}" y="${136-bk*3}" width="8" height="4" fill="#3a3f4e"/>`).join("")}${[20,120,240,340].map(x=>`<rect x="${x-6}" y="${126-bk*4}" width="12" height="${bk*4+18}" fill="#4a5064"/><circle cx="${x}" cy="${123-bk*4}" r="2" fill="${threat?"#e5484d":"#ffd166"}"/>`).join("")}` : "";
+  const smoke = riot ? [70,200,300].map(x=>`<circle cx="${x}" cy="100" r="10" fill="#555" opacity=".35"/><circle cx="${x+4}" cy="84" r="13" fill="#555" opacity=".25"/><path d="M${x-3} 132 l3 -9 3 9z" fill="#ff8a3d"/>`).join("") : "";
+  const stars = Array.from({length:22},(_,i)=>`<circle cx="${(i*67+11)%360}" cy="${(i*29+7)%70}" r="${i%6?.5:1}" fill="#fff" opacity=".6"/>`).join("");
+  return `<svg class="cityart" viewBox="0 0 360 150" role="img" aria-label="Your city, the Meridian ${tier()}">
+    <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1120"/><stop offset=".7" stop-color="${threat?"#4a1620":"#2a2440"}"/><stop offset="1" stop-color="${threat?"#8a2a20":"#6a3a3a"}"/></linearGradient></defs>
+    <rect width="360" height="150" fill="url(#sky)"/>${stars}<path d="M330 16 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z" fill="#fff6d8"><title>Polaris</title></path>
+    <path d="M0 120 Q60 96 120 116 T240 110 T360 118 V150 H0Z" fill="#1d2233"/><rect y="132" width="360" height="18" fill="#2a2a30"/>
+    ${smoke}${g}${wall}${threat?`<rect width="360" height="150" fill="#e5484d" fill-opacity=".14" class="pulse"/>`:""}</svg>`;
+}
+
+
+// ---------- Attack warnings ----------
+// Attacks are planned one day ahead, so a city or region you control always gets a warning first.
+const ATTACKER = {Warmonger:"The Warmonger of Meridian", Bandits:"A bandit war band", Monsters:"A monster swarm"};
+function owned(id){ const r=regionById(id); return !!(r.city || S.ctrl[id]==="Protectorate" || S.outposts[id]); }
+function ownThreats(){ return (S.threats||[]).filter(t=>owned(t.target)); }
+function threatPower(by){ return by==="Warmonger" ? S.wm.str : 4 + Math.min(4, S.day/20); }
+function threatDef(id){ const tr=regionById(id); if (tr.city) return cityDefense(); return 6 + tr.danger + (S.resolved[id]?3:0) + (S.ctrl[id]==="Sentinel Corps"?2:0) + (S.outposts[id]?2:0) + ((S.secured[id]||0)>S.day?3:0); }
+function guardBonus(id){ return S.guard && S.guard.id===id && S.guard.day===S.day ? S.guard.bonus : 0; }
+function defendBonus(){ return teamHeroes().filter(h=>h.hp>0).reduce((a,h)=>a+2+Math.floor(h.level/3),0); }
+function holdChance(t, extra){ const x = threatDef(t.target) + (extra||0) - threatPower(t.by); let n=0; for(let k=0;k<10;k++) if (k<=x) n++; return n*10; }
+function planThreat(id, by){
+  S.threats.push({target:id, by, day:S.day});
+  const r = regionById(id), who = ATTACKER[by];
+  if (r.city){ log(`⚠️ Warning: ${who} is massing troops outside your city. The attack comes tomorrow. Odds the walls hold: ${holdChance(S.threats.at(-1))}%.`, "bad"); S.alerts.push({warn:id}); }
+  else if (owned(id)){ log(`⚠️ Warning: ${who} is gathering on the border of ${id}${S.ctrl[id]==="Protectorate"?", your Protectorate":", where your outpost stands"}. The attack comes tomorrow.`, "bad"); S.alerts.push({warn:id}); }
+  else if (by==="Warmonger") log(`Scouts see the Warmonger's troops gathering near ${id}.`);
+}
+function resolveThreats(){
+  const list = S.threats; S.threats = [];
+  list.forEach(t=>{
+    const id = t.target, r = regionById(id), mine = owned(id), who = ATTACKER[t.by];
+    if (t.by==="Warmonger" && (S.wm.ready || S.won || S.ctrl[id]==="Warmonger")) return;
+    if (t.by!=="Warmonger" && (r.city || HOSTILE.includes(S.ctrl[id]))) return;
+    const guard = guardBonus(id), roll = threatPower(t.by) + rand(10), def = threatDef(id) + guard, held = roll <= def;
+    let text;
+    if (r.city){
+      if (!held){ const loss=Math.floor(S.credits*.2); S.credits-=loss; S.city.unrest+=12; text = `${who} breaks through and raids your city! ${loss} credits stolen and unrest rises. Build Barracks to make the walls stronger.`; log(text, "bad"); }
+      else { text = `${who} hits your city's walls and falls back.${guard?" Your team on the walls made the difference.":""}`; log(text, "good"); }
+    } else if (!held){
+      const was = S.ctrl[id]; S.ctrl[id] = t.by;
+      text = `${who} seizes ${id} from ${ctrlInfo(was).label}!${S.outposts[id]?" Your outpost there is burned.":""}`; log(text, "bad");
+      delete S.outposts[id]; if (S.power[was]!==undefined) S.power[was]-=3;
+    } else { text = `${ctrlInfo(S.ctrl[id]).label} hold ${id} against ${who.replace(/^A /,"a ").replace(/^The /,"the ")}.${guard?" Your team held the line.":""}`; log(text, mine?"good":""); }
+    if (mine && (!held || guard)) S.alerts.push({hit:id, held, text});
+  });
+}
+function defendTarget(id){
+  const t = (S.threats||[]).find(x=>x.target===id), team = teamHeroes().filter(h=>h.hp>0);
+  if (!t || !team.length) return;
+  S.guard = {id, bonus:defendBonus(), day:S.day}; closeModal();
+  log(`Your team digs in ${regionById(id).city?"on the city walls":"at "+id} to meet the attack.`);
+  endDay(); save(); render();
+}
+function threatPanel(){
+  if (!S || S.won) return "";
+  const own = ownThreats(); if (!own.length) return "";
+  const team = teamHeroes().filter(h=>h.hp>0), b = defendBonus();
+  return `<div class="panel alertp" role="alert"><h2>⚠️ Attack warning</h2>${own.map(t=>{ const r=regionById(t.target);
+    return `<p><b>${ATTACKER[t.by]}</b> will attack ${r.city?"your city":`${t.target} (${S.ctrl[t.target]==="Protectorate"?"your Protectorate":"your outpost"})`} at the end of today. Odds it holds: <b>${holdChance(t)}%</b>${team.length?`, or <b>${holdChance(t,b)}%</b> if your team defends it`:""}.</p>
+      <div class="row"><button class="btn" ${team.length?"":"disabled"} onclick="defendTarget('${t.target}')">🛡️ Defend ${r.city?"the city":t.target} (ends the day)</button>${r.city&&tab!=="city"?`<button class="btn ghost sm" onclick="setTab('city')">Build defenses</button>`:""}</div>`; }).join("")}
+    <p class="small muted">${team.length?`Your team adds +${b} defense while it stands guard.`:"Pick a healthy team on the Team tab to defend."} Barracks${regionById(own[0].target).city?"":", outposts and secured routes"} make attacks easier to hold off.</p></div>`;
+}
+function showAlerts(){
+  if (!S || !S.alerts || !S.alerts.length || C || $modal.innerHTML) return;
+  const A = S.alerts; S.alerts = [];
+  const hits = A.filter(a=>a.hit), warns = A.filter(a=>a.warn && (S.threats||[]).some(t=>t.target===a.warn));
+  if (!hits.length && !warns.length){ save(); return; }
+  const lost = hits.some(a=>!a.held);
+  setTimeout(()=>{ sfx("alarm"); }, 80);
+  modal(`${hits.map(a=>`<h2>${a.held?"🛡️ Attack beaten back":"🚨 "+(regionById(a.hit).city?"Your city was attacked!":a.hit+" has fallen!")}</h2><p>${esc(a.text)}</p>`).join("")}
+    ${warns.length?threatPanel().replace('class="panel alertp" role="alert"','')+"":""}
+    <div class="row" style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">${warns.length?"I'll handle it":"OK"}</button></div>`);
+  save();
+}
+
 // ---------- Rendering ----------
 const $app = document.getElementById("app"), $hud = document.getElementById("hud"), $tabs = document.getElementById("tabs"), $modal = document.getElementById("modal");
 function render(){
@@ -435,13 +587,14 @@ function render(){
     .map(([k,l])=>`<button class="${tab===k?"on":""}" onclick="setTab('${k}')">${l}</button>`).join("");
   const p = pendingPick(); if (p) return renderPick(p);
   ({map:renderMap,team:renderTeam,city:renderCity,log:renderLog})[tab]();
+  showAlerts();
 }
 function setTab(k){ tab=k; render(); window.scrollTo(0,0); }
 function bar(cls,v,m){ return `<div class="bar ${cls}"><i style="width:${clamp(v/m*100,0,100)}%"></i></div>`; }
 function renderHUD(){
   const wm = REGIONS.filter(r=>S.ctrl[r.id]==="Warmonger").length;
   $hud.innerHTML = `<div class="in"><b>Day ${S.day}</b><span>💠 ${S.credits}</span><span>⚙️ ${S.alloy} Alloy</span><span>🌾 ${S.food}</span>
-    <span class="${S.city.unrest>50?"danger":""}">Unrest ${S.city.unrest}</span><span class="tag war">Warmonger: ${wm} region${wm===1?"":"s"}</span></div>`;
+    <span class="${S.city.unrest>50?"danger":""}">Unrest ${S.city.unrest}</span><span class="tag war">Warmonger: ${wm} region${wm===1?"":"s"}</span>${ownThreats().length?`<button class="tag alarm pulse" onclick="setTab('map')">⚠️ Attack coming</button>`:""}</div>`;
 }
 
 function renderTitle(){
@@ -455,7 +608,7 @@ function renderTitle(){
       <button class="btn ${has?"ghost":""}" onclick="startCreate()">New Game</button></div>
     ${has?`<p class="small muted" style="margin-top:12px">Starting a new game replaces your saved game.</p>`:""}</div>`;
 }
-function upgradeSave(){ S.gov=S.gov||{charter:null,seats:[...FNAMES,null],laws:[]}; S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; S.act=S.act||1; S.demands=S.demands||[]; S.flared=S.flared||{}; S.settled=S.settled||{peace:0,force:0}; }
+function upgradeSave(){ S.gov=S.gov||{charter:null,seats:[...FNAMES,null],laws:[]}; S.outposts=S.outposts||{}; S.found=S.found||{}; S.secured=S.secured||{}; S.act=S.act||1; S.demands=S.demands||[]; S.flared=S.flared||{}; S.settled=S.settled||{peace:0,force:0}; S.threats=S.threats||[]; S.alerts=S.alerts||[]; }
 function continueGame(){ S = load(); upgradeSave(); tab="map"; render(); }
 function startCreate(){ draft = {step:0,name:"",gender:null,race:null,faction:null,background:null}; render(); }
 
@@ -490,6 +643,7 @@ function finishCreate(){
   S.heroes.push(me); S.team=[me.id];
   const buddy = randomHero(1); buddy.name = pickOne(FIRST)+" "+pickOne(LAST); S.heroes.push(buddy); S.team.push(buddy.id);
   FNAMES.forEach(f=>{ S.rep[f] = f===d.faction?10:0; S.power[f] = f===d.faction?31:23; });
+  upgradeSave();
   REGIONS.forEach(r=>S.ctrl[r.id]=r.home);
   S.ctrl["Great Southern Desert"]="Warmonger"; S.ctrl["Equatorial Isles"]="Bandits"; S.ctrl["Northern Forests"]="Bandits";
   refreshPool(true);
@@ -525,6 +679,7 @@ function mapSVG(){
       <text x="${r.x}" y="${r.y+6}" text-anchor="middle" font-size="18">${r.icon}</text>
       ${S.resolved[r.id]?`<text x="${r.x+18}" y="${r.y-14}" font-size="12" fill="#ffd166">✶</text>`:""}
       ${S.outposts[r.id]?`<text x="${r.x-28}" y="${r.y-12}" font-size="12">🏕️</text>`:""}
+      ${(S.threats||[]).some(t=>t.target===r.id)?`<circle cx="${r.x}" cy="${r.y}" r="31" fill="none" stroke="#e5484d" stroke-width="2.5" stroke-dasharray="5 4" class="pulse"/>${owned(r.id)?`<text x="${r.x+16}" y="${r.y+22}" font-size="13">⚠️</text>`:""}`:""}
       <text x="${r.x}" y="${r.y+40}" text-anchor="middle" font-size="10" fill="#e7e9f0">${r.id}</text></g>`;
   }).join("");
   return `<svg viewBox="0 0 360 300" role="img" aria-label="Map of the planet ${PLANET}">
@@ -545,7 +700,7 @@ function renderMap(){
   const legendKeys = ["City",...FNAMES,"Protectorate","Warmonger","Bandits","Monsters"].filter(k=>counts[k]);
   let actions = "";
   const T = terrainOf(r), explore = `<button class="btn ghost" ${ok?"":"disabled"} onclick="openExplore()">${T.icon} Explore</button>`;
-  if (r.city) actions = `<p class="small muted">Your city. Defense ${cityDefense()}. The Warmonger can raid it, but it can never be taken.</p><div class="row"><button class="btn" onclick="setTab('city')">Manage the city</button>${explore}</div>${act2()&&S.demands.length?`<p class="small" style="margin-top:8px">📜 ${S.demands.length} faction demand${S.demands.length>1?"s":""} waiting on the City tab.</p>`:""}`;
+  if (r.city) actions = `<p class="small muted">Your city. Defense ${cityDefense()}. The Warmonger can raid it, but it can never be taken. You always get a day's warning before an attack.</p><div class="row"><button class="btn" onclick="setTab('city')">Manage the city</button>${explore}</div>${act2()&&S.demands.length?`<p class="small" style="margin-top:8px">📜 ${S.demands.length} faction demand${S.demands.length>1?"s":""} waiting on the City tab.</p>`:""}`;
   else if (hostile) actions = `<p class="small muted">Danger ${r.danger}. Send your team to drive them out, then decide who governs the region.</p>
       <button class="btn" ${ok?"":"disabled"} onclick="expedition('liberate')">Liberate with your team</button>`;
   else actions = `<p class="small muted">Danger ${r.danger}. ${S.resolved[r.id]?"Flashpoint resolved.":S.flared[r.id]?"The flashpoint has flared up again, and it is tougher this time.":"A flashpoint is brewing here."}</p><div class="row">
@@ -557,6 +712,7 @@ function renderMap(){
   $app.innerHTML = `
     ${S.won?`<div class="panel"><h2>✶ ${ENDINGS[endingKey()].title}</h2><p>${ENDINGS[endingKey()].text}</p><p class="small">${endingText()}</p><p class="small muted">Your city keeps running. Keep playing, or start over from the title screen.</p><button class="btn ghost" onclick="toTitle()">Title screen</button></div>`:""}
     ${!S.won && S.wm.ready?`<div class="panel"><h2>⚔️ The Warmonger's last stand</h2><p>${S.summit?"The Summit is in session, and the Warmonger of Meridian is marching on your city to break it up. Hold the line.":"Driven off every region, the Warmonger of Meridian gathers his guard for one final strike at your city."}</p><button class="btn" ${ok?"":"disabled"} onclick="expedition('final')">Face the Warmonger</button></div>`:""}
+    ${threatPanel()}
     ${summitPanel()}
     ${plotPanel()}
     <div class="panel map">${mapSVG()}
@@ -881,8 +1037,8 @@ function nextActor(start){
 function actor(){ return heroById(C.ids[C.turn]); }
 function renderCombat(){
   const a = C.over ? null : actor();
-  const fighters = C.enemies.map(e=>`<div class="fighter ${e.hp<=0?"down":""}"><div class="spread small"><b>${e.boss?"⚠️ ":""}${e.name}</b><span>${e.hp}/${e.maxHp}</span></div>${bar("ehp",e.hp,e.maxHp)}</div>`).join("");
-  const heroes = C.ids.map(heroById).map(h=>`<div class="fighter ${h.hp<=0?"down":""} ${a&&a.id===h.id?"act":""}"><div class="spread small"><b>${esc(h.name)}</b><span>HP ${h.hp}/${maxHP(h)} · EN ${h.en}</span></div>${bar("hp",h.hp,maxHP(h))}</div>`).join("");
+  const fighters = C.enemies.map(e=>`<div class="fighter who ${e.hp<=0?"down":""}">${enemyArt(e,34)}<div><div class="spread small"><b>${e.boss?"⚠️ ":""}${e.name}</b><span>${e.hp}/${e.maxHp}</span></div>${bar("ehp",e.hp,e.maxHp)}</div></div>`).join("");
+  const heroes = C.ids.map(heroById).map(h=>`<div class="fighter who ${h.hp<=0?"down":""} ${a&&a.id===h.id?"act":""}">${portrait(h,34)}<div><div class="spread small"><b>${esc(h.name)}</b><span>HP ${h.hp}/${maxHP(h)} · EN ${h.en}</span></div>${bar("hp",h.hp,maxHP(h))}</div></div>`).join("");
   const canRetreat = C.kind!=="final";
   modal(`<div class="spread"><h2>Battle: ${C.region}</h2></div>
     <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px"><div><h3>Enemies</h3>${fighters}</div><div><h3>Your team</h3>${heroes}</div></div>
@@ -1004,31 +1160,21 @@ function endDay(){
   const after = ruler();
   if (after!==before) log(`Power shifts on the council: the ${after} now lead. ${RULER_FX[after]}`, "pol");
   if (S.day - S.cultureDay >= 5){ let n; do { n = rand(CULTURES.length); } while(n===S.culture); S.culture=n; S.cultureDay=S.day; log(`A new mood takes hold in the city: ${CULTURES[n].name}. ${CULTURES[n].text}`, "pol"); }
+  resolveThreats();
   // the Warmonger moves
   if (!S.wm.ready && !S.won){
     S.wm.str = Math.min(10, S.wm.str + (g.wmSlow?0.15:0.3));
     let held = REGIONS.filter(r=>S.ctrl[r.id]==="Warmonger");
-    if (!held.length && Math.random()<.5){ const t = pickOne(REGIONS.filter(r=>!r.city && S.ctrl[r.id]!=="Warmonger")); S.ctrl[t.id]="Warmonger"; held=[t]; log(`The Warmonger of Meridian re-emerges and seizes ${t.id}!`, "bad"); }
+    if (!held.length && Math.random()<.5){ const t = pickOne(REGIONS.filter(r=>!r.city && S.ctrl[r.id]!=="Warmonger" && !owned(r.id))); if (t){ S.ctrl[t.id]="Warmonger"; log(`The Warmonger of Meridian re-emerges and seizes ${t.id}!`, "bad"); } }
     else if (held.length && Math.random() < Math.min(.65, .4 + held.length*.05)){
-      const targets = [...new Set(held.flatMap(r=>neighbors(r.id)))].filter(id=>S.ctrl[id]!=="Warmonger");
-      if (targets.length){
-        const t = pickOne(targets), tr = regionById(t);
-        const roll = S.wm.str + rand(10);
-        if (tr.city){
-          if (roll > cityDefense()){ const loss=Math.floor(S.credits*.2); S.credits-=loss; S.city.unrest+=12; log(`The Warmonger raids your city! ${loss} credits stolen and unrest rises. Build Barracks to defend it.`, "bad"); }
-          else log("The Warmonger's raiders hit your city's walls and fall back.", "good");
-        } else {
-          let def = 6 + tr.danger + (S.resolved[t]?3:0) + (S.ctrl[t]==="Sentinel Corps"?2:0) + (S.outposts[t]?2:0) + ((S.secured[t]||0)>S.day?3:0);
-          if (roll > def){ const was = S.ctrl[t]; S.ctrl[t]="Warmonger"; log(`The Warmonger of Meridian seizes ${t} from ${ctrlInfo(was).label}!${S.outposts[t]?" Your outpost there is burned.":""}`, "bad"); delete S.outposts[t]; if(S.power[was]!==undefined) S.power[was]-=3; }
-          else log(`${ctrlInfo(S.ctrl[t]).label} hold ${t} against the Warmonger.`);
-        }
-      }
+      const targets = [...new Set(held.flatMap(r=>neighbors(r.id)))].filter(id=>S.ctrl[id]!=="Warmonger" && !S.threats.some(t=>t.target===id));
+      if (targets.length) planThreat(pickOne(targets), "Warmonger");
     }
   }
   // bandits and monsters
   const spread = .08 + (cu.bandit||0);
-  REGIONS.filter(r=>S.ctrl[r.id]==="Bandits").forEach(r=>{ if (Math.random()<spread){ const t = pickOne(neighbors(r.id).filter(id=>!regionById(id).city && !HOSTILE.includes(S.ctrl[id]))); if (t){ S.ctrl[t]="Bandits"; log(`Bandits overrun ${t}.${S.outposts[t]?" Your outpost there is lost.":""}`, "bad"); delete S.outposts[t]; } } });
-  if (Math.random() < .07){ const t = pickOne(REGIONS.filter(r=>!r.city && !HOSTILE.includes(S.ctrl[r.id]))); if (t){ S.ctrl[t.id]="Monsters"; log(`Monsters swarm out of the wilds and take ${t.id}.${S.outposts[t.id]?" Your outpost there is lost.":""}`, "bad"); delete S.outposts[t.id]; } }
+  REGIONS.filter(r=>S.ctrl[r.id]==="Bandits").forEach(r=>{ if (Math.random()<spread){ const t = pickOne(neighbors(r.id).filter(id=>!regionById(id).city && !HOSTILE.includes(S.ctrl[id]))); if (t && owned(t)){ if (!S.threats.some(x=>x.target===t)) planThreat(t,"Bandits"); } else if (t){ S.ctrl[t]="Bandits"; log(`Bandits overrun ${t}.`, "bad"); } } });
+  if (Math.random() < .07){ const t = pickOne(REGIONS.filter(r=>!r.city && !HOSTILE.includes(S.ctrl[r.id]))); if (t && owned(t.id)){ if (!S.threats.some(x=>x.target===t.id)) planThreat(t.id,"Monsters"); } else if (t){ S.ctrl[t.id]="Monsters"; log(`Monsters swarm out of the wilds and take ${t.id}.`, "bad"); } }
   REGIONS.filter(r=>S.ctrl[r.id]==="Bandits"||S.ctrl[r.id]==="Monsters").forEach(r=>{
     if (Math.random()<.05){ const f = neighbors(r.id).map(id=>S.ctrl[id]).filter(c=>FNAMES.includes(c)); if (f.length){ const w = pickOne(f); log(`The ${w} clear ${r.id} on their own and take it over.`, "pol"); S.ctrl[r.id]=w; } }
   });
@@ -1109,15 +1255,15 @@ function refreshPool(first){
 function renderTeam(){
   const heroCard = h=>{
     const inTeam = S.team.includes(h.id);
-    return `<div class="card hero ${inTeam?"sel":""}"><div class="spread"><b>${esc(h.name)}${h.player?" (you)":""}</b><span class="tag">Lv ${h.level}</span></div>
-      <span class="meta">${h.race} · ${h.background}${h.subclass?" → "+h.subclass:""}${h.spec?" → "+h.spec:""}</span>
+    return `<div class="card hero ${inTeam?"sel":""}"><div class="who">${portrait(h,52)}<div><div class="spread"><b>${esc(h.name)}${h.player?" (you)":""}</b><span class="tag">Lv ${h.level}</span></div>
+      <span class="meta">${h.race} · ${h.background}${h.subclass?" → "+h.subclass:""}${h.spec?" → "+h.spec:""}</span></div></div>
       <div class="row small">HP ${h.hp}/${maxHP(h)} ${bar("hp",h.hp,maxHP(h))}</div>
       <div class="row small">XP ${h.xp}/${xpNeeded(h)} ${bar("xp",h.xp,xpNeeded(h))}</div>
       <div class="row"><button class="btn sm ${inTeam?"ghost":""}" onclick="toggleTeam('${h.id}')" ${!inTeam&&S.team.length>=TEAM_MAX?"disabled":""}>${inTeam?"Leave team":"Add to team"}</button>
       <button class="btn ghost sm" onclick="openHero('${h.id}')">Details${h.statPoints?` (${h.statPoints} pts)`:""}</button></div></div>`;
   };
-  const pool = S.pool.map((h,i)=>{ const cost=hireCost(h); return `<div class="card hero"><div class="spread"><b>${esc(h.name)}</b><span class="tag">Lv ${h.level}</span></div>
-      <span class="meta">${h.race} · ${h.background}${h.subclass?" → "+h.subclass:""}${h.spec?" → "+h.spec:""}</span>
+  const pool = S.pool.map((h,i)=>{ const cost=hireCost(h); return `<div class="card hero"><div class="who">${portrait(h,44)}<div><div class="spread"><b>${esc(h.name)}</b><span class="tag">Lv ${h.level}</span></div>
+      <span class="meta">${h.race} · ${h.background}${h.subclass?" → "+h.subclass:""}${h.spec?" → "+h.spec:""}</span></div></div>
       <span class="small muted">${STATS.map(k=>`${k} ${stat(h,k)}`).join(" · ")}</span>
       <button class="btn sm" onclick="hire(${i})" ${S.credits<cost?"disabled":""}>Hire for ${cost} 💠</button></div>`; }).join("");
   $app.innerHTML = `<div class="panel"><h2>Your team (${S.team.length}/${TEAM_MAX})</h2><p class="small muted">Pick up to ${TEAM_MAX} heroes to go out on expeditions. Heroes who stay home rest and heal.</p>
@@ -1129,7 +1275,7 @@ function toggleTeam(id){ if (S.team.includes(id)) S.team=S.team.filter(x=>x!==id
 function hire(i){ const h=S.pool[i], cost=hireCost(h); if(S.credits<cost) return; S.credits-=cost; S.pool.splice(i,1); S.heroes.push(h); if(S.team.length<TEAM_MAX) S.team.push(h.id); log(`${h.name} joins your city.`, "good"); save(); render(); }
 function openHero(id){
   const h = heroById(id), wcost = {credits:30+h.weapon*12, alloy:8+h.weapon*3};
-  modal(`<div class="spread"><h2>${esc(h.name)}</h2><span class="tag">Lv ${h.level}</span></div>
+  modal(`<div class="who">${portrait(h,72)}<div><div class="spread"><h2>${esc(h.name)}</h2><span class="tag">Lv ${h.level}</span></div></div></div>
     <p class="muted">${h.gender} · ${h.race} · ${h.background}${h.subclass?" → "+h.subclass:""}${h.spec?" → "+h.spec:""}</p>
     ${h.statPoints?`<p class="small" style="color:var(--gold)">${h.statPoints} stat point${h.statPoints>1?"s":""} to spend.</p>`:""}
     <div class="stats">${STATS.map(k=>`<div><span class="small muted">${STAT_NAMES[k]}</span><b>${stat(h,k)}</b>${h.statPoints?`<button class="btn ghost sm" onclick="spend('${h.id}','${k}')">+</button>`:""}</div>`).join("")}</div>
@@ -1149,7 +1295,9 @@ function renderCity(){
   const inc = income(), r = ruler(), cu = culture();
   const power = FNAMES.map(f=>`<i style="width:${S.power[f]}%;background:${FACTIONS[f].color}" title="${f} ${S.power[f]}%"></i>`).join("");
   $app.innerHTML = `
+  ${threatPanel()}
   <div class="panel"><div class="spread"><h2>🏛️ Meridian ${tier()}</h2><span class="tag">Defense ${cityDefense()}</span></div>
+    ${citySVG()}
     <p class="small muted">Each day: ${inc.credits>=0?"+":""}${inc.credits} credits · ${inc.alloy>=0?"+":""}${inc.alloy} Alloy · ${inc.food>=0?"+":""}${inc.food} food (${S.heroes.length} heroes eat). Unrest ${S.city.unrest}${S.city.unrest>50?" halves your credits":""}.</p>
     <div class="row"><button class="btn ghost sm" onclick="buyMedkit()" ${S.credits<Math.round(30*priceMult())?"disabled":""}>Buy Medkit (${Math.round(30*priceMult())} 💠) · have ${S.items.medkit}</button></div></div>
   <div class="panel"><h2>Council and culture</h2>
