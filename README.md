@@ -1,6 +1,6 @@
 # Ashes of Polaris
 
-A free idle sci-fi strategy RPG that runs entirely in the browser. The first explorers reached the planet Aurelia by following the star Polaris. A thousand years of war later, you found a city in the Central Meridian, hire a team of heroes, and push the Warmonger of Meridian off the map. The days run on their own: the team fights, explores and settles flashpoints by itself, and the city keeps working while you're away (up to 150 days).
+A free idle sci-fi strategy RPG that runs entirely in the browser. The first explorers reached the planet Aurelia by following the star Polaris. A thousand years of war later, you found a city in the Central Meridian, hire a team of heroes, and push the Warmonger of Meridian off the map. The days run on their own: the team fights, explores and settles flashpoints by itself, and the city keeps working while you're away (up to 60 days). You choose which lands to take over and lead those battles turn by turn..
 
 **Play:** https://jazstone69.github.io/ashes-of-polaris/
 
